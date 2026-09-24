@@ -17,6 +17,8 @@ class transaksi extends Model
         'kembalian',
     ];
 
+    public $timestamps = true;
+
     public function user()
     {
         return $this->belongsTo(User::class);

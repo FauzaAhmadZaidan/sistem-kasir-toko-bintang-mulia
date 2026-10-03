@@ -28,8 +28,6 @@ class AuthController extends Controller
             !Auth::attempt([
                 'username' => $validatedData['username'],
                 'password' => $validatedData['password'],
-
-                'status' => 'aktif',
             ])
         ) {
             return back()

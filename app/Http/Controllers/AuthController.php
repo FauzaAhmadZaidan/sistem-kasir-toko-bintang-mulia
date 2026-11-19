@@ -7,24 +7,21 @@ use Hash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator as Val;
+use Inertia\Inertia;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
     //
+    public function toLogin() {
+        return Inertia::render('Auth/Login');
+    }
     public function login(Request $request)
     {
         $validator = Val::make($request->all(), [
             'username' => 'required',
             'password' => 'required',
         ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Action failed',
-                'error' => $validator->errors()
-            ]);
-        }
 
         $validatedData = $validator->validated();
 
@@ -33,55 +30,33 @@ class AuthController extends Controller
                 'username' => $validatedData['username'],
                 'password' => $validatedData['password']
             ])
-        )
-            ;
+        ) {
+            $request->session()->regenerate();
+            
+            $user = Auth::user();
 
-        $user = Auth::user();
-
-        if (!$user) {
-            return response()->json([
-                'message' => 'Login failed',
-            ], 401);
+            if ($user->role === 'admin') {
+                return redirect()->route('dashboard.admin');
+            } else {
+                return redirect()->route('dashboard.user');
+            }
         }
 
-        $user->tokens()->delete();
-
-        $token = $user->createToken('token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Login success',
-            'user' => $user,
-            'token' => $token,
+        return back()->withErrors([
+            'username' => 'Username atau Password salah!'
         ]);
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
-        $user = Auth::user();
-
-        if (!$user) {
-            return response()->json([
-                'message' => 'Action failed',
-            ], 401);
-        }
-
-        $userToken = $user->tokens();
-
-        if (!$userToken) {
-            return response()->json([
-                'message' => 'You have not beed logged in',
-            ], 401);
-        }
-
-        $userToken->delete();
-
-        return response()->json([
-            'message' => 'Logout success',
-            'user' => $user
-        ]);
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        return redirect('/');
     }
 
-    public function extendToken(Request $request) {
+    public function extendToken(Request $request)
+    {
         $token = $request->user()->currentAccessToken();
 
         if (!$token) {
@@ -101,10 +76,11 @@ class AuthController extends Controller
             'message' => 'Token extended successfully',
             // 'token' => $token,
         ]);
-        
+
     }
 
-    public function user() {
+    public function user()
+    {
         $user = Auth::user();
 
         if (!$user) {

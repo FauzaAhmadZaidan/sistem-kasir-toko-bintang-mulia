@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import type { ChangeEvent } from 'react';
+import type { SubmitEvent } from 'react';
 
 
 type LoginFrom = {
@@ -20,7 +20,7 @@ export default function Login(){
         password: '',
     });
 
-    function submit(event: ChangeEvent<HTMLFormElement>) {
+    function submit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
         post('/login', {
             onFinish: () => reset('password'),

@@ -63,3 +63,9 @@ Route::get('/cek-frontend', function () {
         'namaToko' => 'Toko Bintang Mulia',
     ]);
 });
+
+Route::get('/preview/kasir', function () {
+    abort_unless(app()->environment('local'), 404);
+
+    return Inertia::render('Cashier/Index');
+})->name('preview.kasir');

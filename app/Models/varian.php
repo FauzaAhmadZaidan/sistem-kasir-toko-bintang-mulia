@@ -12,9 +12,6 @@ class varian extends Model
     protected $fillable = [
         'jenis_varian_id',
         'n_varian',
-        'harga',
-        'tambahan_harga',
-        'stok',
     ];
 
     public function jenis_varian()
@@ -22,9 +19,9 @@ class varian extends Model
         return $this->belongsTo(jenis_varian::class);
     }
 
-    public function log_stok()
+    public function barang_varian()
     {
-        return $this->hasMany(log_stok::class);
+        return $this->hasMany(barang_varian::class);
     }
 }
 

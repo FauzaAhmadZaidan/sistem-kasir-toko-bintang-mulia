@@ -7,6 +7,7 @@ use Hash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator as Val;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -19,41 +20,102 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return back()->withErrors($validator)->withInput($request->only('username'));
+            return response()->json([
+                'message' => 'Action failed',
+                'error' => $validator->errors()
+            ]);
         }
 
         $validatedData = $validator->validated();
 
         if (
-            !Auth::attempt([
+            Auth::attempt([
                 'username' => $validatedData['username'],
-                'password' => $validatedData['password'],
+                'password' => $validatedData['password']
             ])
-        ) {
-            return back()
-                ->withErrors([
-                    'username' => 'Invalid username or password'])
-                ->withInput(request()->only('username'));
-        }
-
-        $request->session()->regenerate();
+        )
+            ;
 
         $user = Auth::user();
 
-        if ($user->role == 'admin') {
-            return redirect('/dashboard/admin');
-        } elseif ($user->role == 'user') {
-            return redirect('/dashboard/user');
+        if (!$user) {
+            return response()->json([
+                'message' => 'Login failed',
+            ], 401);
         }
+
+        $user->tokens()->delete();
+
+        $token = $user->createToken('token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login success',
+            'user' => $user,
+            'token' => $token,
+        ]);
     }
 
-    public function logout(Request $request)
+    public function logout()
     {
-        Auth::logout();
+        $user = Auth::user();
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        if (!$user) {
+            return response()->json([
+                'message' => 'Action failed',
+            ], 401);
+        }
 
-        return redirect('/');
+        $userToken = $user->tokens();
+
+        if (!$userToken) {
+            return response()->json([
+                'message' => 'You have not beed logged in',
+            ], 401);
+        }
+
+        $userToken->delete();
+
+        return response()->json([
+            'message' => 'Logout success',
+            'user' => $user
+        ]);
+    }
+
+    public function extendToken(Request $request) {
+        $token = $request->user()->currentAccessToken();
+
+        if (!$token) {
+            return response()->json([
+                'message' => 'Action failed',
+            ], 401);
+        }
+
+        if ($token instanceof PersonalAccessToken) {
+            $token->forceFill([
+                'created_at' => now()
+            ]);
+            $token->save();
+        }
+
+        return response()->json([
+            'message' => 'Token extended successfully',
+            // 'token' => $token,
+        ]);
+        
+    }
+
+    public function user() {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Action failed',
+            ], 401);
+        }
+
+        return response()->json([
+            'message' => 'User found',
+            'user' => $user
+        ]);
     }
 }

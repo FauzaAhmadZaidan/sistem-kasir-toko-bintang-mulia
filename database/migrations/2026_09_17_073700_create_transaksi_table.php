@@ -14,6 +14,7 @@ return new class extends Migration {
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->string('invoice');
+            $table->dateTime('waktu');
             $table->integer('total');
             $table->integer('bayar');
             $table->integer('kembalian');
@@ -26,7 +27,7 @@ return new class extends Migration {
 
     /**
      * Reverse the migrations.
-     */
+     */ 
     public function down(): void
     {
         Schema::dropIfExists('transaksi');

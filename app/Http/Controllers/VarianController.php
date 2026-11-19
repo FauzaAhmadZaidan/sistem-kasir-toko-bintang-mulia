@@ -2,8 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\barang;
+use App\Models\barang_jenis_varian;
+use App\Models\barang_varian;
+use App\Models\jenis_varian;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator as Val;
 use App\Models\varian;
 
@@ -24,9 +29,6 @@ class VarianController extends Controller
         $validator = Val::make($request->all(), [
             'jenis_varian_id' => 'required|integer',
             'n_varian' => 'required|string',
-            'harga' => 'required|integer',
-            'tambahan_harga' => 'required|integer',
-            'stok' => 'required|integer',
         ]);
 
         if ($validator->fails()) {
@@ -41,9 +43,6 @@ class VarianController extends Controller
         $newVarian = varian::create([
             'jenis_varian_id' => $validatedData['jenis_varian_id'],
             'n_varian' => $validatedData['n_varian'],
-            'harga' => $validatedData['harga'],
-            'tambahan_harga' => $validatedData['tambahan_harga'],
-            'stok' => $validatedData['stok'],
         ]);
 
         return response()->json([
@@ -52,7 +51,8 @@ class VarianController extends Controller
         ], 201);
     }
 
-    public function updateVarian(Request $request){
+    public function updateVarian(Request $request)
+    {
         //
         $user = Auth::user();
 
@@ -64,11 +64,8 @@ class VarianController extends Controller
 
         $validator = Val::make($request->all(), [
             'id' => 'required|integer',
-            'jenis_varian_id' => 'required|integer',
+            'jenis_varian_id' => 'sometimes|integer',
             'n_varian' => 'sometimes|string',
-            'harga' => 'sometimes|integer',
-            'tambahan_harga' => 'sometimes|integer',
-            'stok' => 'sometimes|integer',
         ]);
 
         if ($validator->fails()) {
@@ -91,14 +88,9 @@ class VarianController extends Controller
         if (isset($validatedData['n_varian'])) {
             $varian->n_varian = $validatedData['n_varian'];
         }
-        if (isset($validatedData['harga'])) {
-            $varian->harga = $validatedData['harga'];
-        }
-        if (isset($validatedData['tambahan_harga'])) {
-            $varian->tambahan_harga = $validatedData['tambahan_harga'];
-        }
-        if (isset($validatedData['stok'])) {
-            $varian->stok = $validatedData['stok'];
+
+        if (isset($validatedData['jenis_varian_id'])) {
+            $varian->jenis_varian_id = $validatedData['jenis_varian_id'];
         }
 
         $varian->save();
@@ -106,6 +98,71 @@ class VarianController extends Controller
         return response()->json([
             'message' => 'Varian updated successfully',
             'data' => $varian
+        ], 200);
+    }
+
+    public function tambahVarian(Request $request)
+    {
+        //
+        $user = Auth::user();
+
+        if ($user->role != 'admin') {
+            return response()->json([
+                'message' => 'You are not authorized to perform this action',
+            ], 403);
+        }
+
+        $validator = Val::make($request->all(), [
+            'jenis_varian' => 'required|string',
+            'barang_id' => 'required|integer|exists:barang,id',
+            'varian' => 'required|array|min:1',
+            'varian.*' => 'required|string|distinct:ignore_case',
+        ]);
+
+        $validatedData = $validator->validated();
+
+        DB::transaction(function () use ($validatedData) {
+            $jenisVarian = jenis_varian::firstOrCreate([
+                'n_jenis_varian' => $validatedData['jenis_varian'],
+            ]);
+
+            barang_jenis_varian::create([
+                'barang_id' => $validatedData['barang_id'],
+                'jenis_varian_id' => $jenisVarian->id,
+            ]);
+
+            foreach ($validatedData['varian'] as $n_varian) {
+                $varian = varian::firstOrCreate([
+                    'jenis_varian_id' => $jenisVarian->id,
+                    'n_varian' => $n_varian,
+                ]);
+
+                barang_varian::create([
+                    'barang_id' => $validatedData['barang_id'],
+                    'varian_id' => $varian->id,
+                ]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'Varian created successfully',
+        ], 201);
+    }
+
+    public function getVarian(){
+
+        $user = Auth::user();
+
+        if (!$user || $user->role != 'admin') {
+            return response()->json([
+                'message' => 'You are not authorized to perform this action',
+            ], 403);
+        }
+
+        $varian = varian::all();
+        return response()->json([
+            'message' => 'Varian fetched successfully',
+            'data' => $varian,
         ], 200);
     }
 }

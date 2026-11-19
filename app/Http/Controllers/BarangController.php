@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\KasirBarangResource;
+use App\Models\kategori;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator as Val;
@@ -10,7 +12,7 @@ use App\Models\barang;
 class BarangController extends Controller
 {
     //
-    public function addNewBarang(Request $request)
+    public function tambahBarang(Request $request)
     {
         $user = Auth::user();
 
@@ -21,13 +23,8 @@ class BarangController extends Controller
         }
 
         $validator = Val::make($request->all(), [
-            'id_kategori' => 'required|integer|exists:kategori,id',
-            'n_barang' => 'required|string',
-            'kode' => 'nullable|string',
-            'harga' => 'nullable|integer',
-            'total_stok' => 'required|integer',
-            'status' => 'required|string|in:aktif,tidak aktif',
-            'gambar' => 'nullable|string',
+            'kategori_barang' => 'required|string',
+            'nama_barang' => 'required|string',
             'has_varian' => 'required|boolean',
         ]);
 
@@ -40,26 +37,64 @@ class BarangController extends Controller
 
         $validatedData = $validator->validated();
 
-        $newBarang = barang::create([
-            'id_kategori' => $validatedData['id_kategori'],
-            'n_barang' => $validatedData['n_barang'],
-            'kode' => $validatedData['kode'],
-            'harga' => $validatedData['harga'],
-            'total_stok' => $validatedData['total_stok'],
-            'status' => $validatedData['status'],
-            'gambar' => $validatedData['gambar'],
+        $kategori = kategori::firstOrCreate([
+            'n_kategori' => $validatedData['kategori_barang'],
+        ]);
+
+        $barang = barang::create([
+            'kategori_id' => $kategori->id,
+            'n_barang' => $validatedData['nama_barang'],
             'has_varian' => $validatedData['has_varian'],
         ]);
 
         return response()->json([
             'message' => 'Barang created successfully',
-            'barang' => $newBarang,
+            'kategori' => $kategori,
+            'barang' => $barang,
         ], 201);
     }
 
-    public function updateBarang(Request $request)
-    {
+    public function getBarang() {
         $user = Auth::user();
+
+        if ($user->role != 'user') {
+            return response()->json([
+                'message' => 'Harap login dengan akun user',
+            ], 403);
+        }
+
+        $barang = barang::query()
+        ->whereHas('skus', function ($query) {
+            $query->where('status', 'aktif');
+        })
+        ->with([
+            'kategori',
+            'varians',
+            'jenis_varians',
+
+            'skus' => function ($query) {
+                $query->where('status', 'aktif')
+                ->with('varians');
+            },
+        ])
+        ->orderBy('n_barang')
+        ->get();
+
+        return KasirBarangResource::collection($barang);
+        // return response()->json([
+        //     'message' => 'Barang fetched successfully',
+        //     'data' => $barang,
+        // ]);
+    }
+
+    public function editBarang(Request $request) {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Not signed in',
+            ], 403);
+        }
 
         if ($user->role != 'admin') {
             return response()->json([
@@ -68,14 +103,9 @@ class BarangController extends Controller
         }
 
         $validator = Val::make($request->all(), [
-            'id' => 'required|integer|exists:barang,id',
-            'id_kategori' => 'sometimes|integer|exists:kategori,id',
+            'id' => 'required|integer',
+            'kategori_id' => 'sometimes|integer',
             'n_barang' => 'sometimes|string',
-            'kode' => 'sometimes|string',
-            'harga' => 'sometimes|integer',
-            'total_stok' => 'sometimes|integer',
-            'status' => 'sometimes|string|in:aktif,tidak aktif',
-            'gambar' => 'sometimes|string',
             'has_varian' => 'sometimes|boolean',
         ]);
 
@@ -88,51 +118,31 @@ class BarangController extends Controller
 
         $validatedData = $validator->validated();
 
-        $barang = barang::find($validatedData['id']);
-
-        if (!$barang) {
+        $target = barang::find( $validatedData['id']);
+        
+        if (!$target) {
             return response()->json([
                 'message' => 'Barang not found',
             ], 404);
         }
 
-        if (isset($validatedData['id_kategori'])) {
-            $barang->id_kategori = $validatedData['id_kategori'];
+        if (isset($validatedData['kategori_id'])) {
+            $target->kategori_id = $validatedData['kategori_id'];
         }
 
         if (isset($validatedData['n_barang'])) {
-            $barang->n_barang = $validatedData['n_barang'];
-        }
-
-        if (isset($validatedData['kode'])) {
-            $barang->kode = $validatedData['kode'];
-        }
-
-        if (isset($validatedData['harga'])) {
-            $barang->harga = $validatedData['harga'];
-        }
-
-        if (isset($validatedData['total_stok'])) {
-            $barang->total_stok = $validatedData['total_stok'];
-        }
-
-        if (isset($validatedData['status'])) {
-            $barang->status = $validatedData['status'];
-        }
-
-        if (isset($validatedData['gambar'])) {
-            $barang->gambar = $validatedData['gambar'];
+            $target->n_barang = $validatedData['n_barang'];
         }
 
         if (isset($validatedData['has_varian'])) {
-            $barang->has_varian = $validatedData['has_varian'];
+            $target->has_varian = $validatedData['has_varian'];
         }
 
-        $barang->save();
+        $target->save();
 
         return response()->json([
             'message' => 'Barang updated successfully',
-            'barang' => $barang,
+            'data' => $target,
         ], 200);
     }
 }

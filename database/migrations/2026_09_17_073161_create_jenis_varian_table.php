@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('jenis_varian', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('barang_id');
             $table->string('n_jenis_varian');
-            $table->enum('status', ['aktif', 'tidak aktif'])->default('aktif');
             $table->timestamps();
+
+            $table->unique('n_jenis_varian');
         });
     }
 

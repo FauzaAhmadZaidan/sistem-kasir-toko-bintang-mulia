@@ -21,7 +21,7 @@ class KategoriController extends Controller
         }
 
         $validator = Val::make($request->all(), [
-            'n_kategori' => 'required|string',
+            'n_kategori' => 'required|string|unique:kategori,n_kategori',
         ]);
 
         if ($validator->fails()) {
@@ -80,6 +80,23 @@ class KategoriController extends Controller
 
         return response()->json([
             'message' => 'Kategori updated successfully',
+            'data' => $kategori
+        ], 200);
+    }
+
+    public function getKategori() {
+        $user = Auth::user();
+
+        if ($user->role != 'admin') {
+            return response()->json([
+                'message' => 'You are not authorized to perform this action',
+            ], 403);
+        }
+
+        $kategori = kategori::all();
+
+        return response()->json([
+            'message' => 'Kategori found',
             'data' => $kategori
         ], 200);
     }

@@ -9,20 +9,48 @@ class barang extends Model
     //
     protected $table = 'barang';
 
-    protected $fillable = ['kategori_id', 'n_barang', 'harga', 'total_stok', 'status', 'gambar', 'has_varian'];
+    protected $fillable = ['kategori_id', 'n_barang', 'status', 'has_varian'];
 
     public function kategori()
     {
         return $this->belongsTo(kategori::class);
     }
 
-    public function jenis_varian()
+    public function sku()
     {
-        return $this->hasMany(jenis_varian::class);
+        return $this->hasMany(sku::class);
     }
 
-    public function varian()
+    public function barang_varian()
     {
-        return $this->hasMany(varian::class);
+        return $this->hasMany(barang_varian::class);
+    }
+
+    public function jenis_varians()
+    {
+        return $this->belongsToMany(
+            jenis_varian::class,
+            'barang_jenis_varian',
+            'barang_id',
+            'jenis_varian_id'
+        );
+    }
+
+    public function varians()
+    {
+        return $this->belongsToMany(
+            Varian::class,
+            'barang_varian',
+            'barang_id',
+            'varian_id'
+        );
+    }
+
+    public function skus()
+    {
+        return $this->hasMany(
+            sku::class,
+            'barang_id'
+        );
     }
 }

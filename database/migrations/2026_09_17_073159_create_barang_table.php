@@ -13,13 +13,10 @@ return new class extends Migration {
         Schema::create('barang', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('kategori_id');
-            $table->string('kode')->nullable()->default(null);
             $table->string('n_barang');
-            $table->integer('harga')->nullable()->default(null);
-            $table->integer('total_stok')->default(0);
             $table->enum('status', ['aktif', 'tidak aktif'])->default('aktif');
             $table->string('gambar')->nullable()->default(null);
-            $table->boolean('has_varian')->default(0);
+            $table->boolean('has_varian')->default(null)->nullable();
 
             $table->timestamps();
 

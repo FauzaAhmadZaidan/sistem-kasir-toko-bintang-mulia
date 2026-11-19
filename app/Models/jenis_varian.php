@@ -11,13 +11,7 @@ class jenis_varian extends Model
 
     protected $fillable = [
         'n_jenis_varian',
-        'status',
     ];
-
-    public function barang()
-    {
-        return $this->hasMany(barang::class);
-    }
 
     public function varian()
     {

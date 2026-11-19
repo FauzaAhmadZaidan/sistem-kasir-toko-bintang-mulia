@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -15,13 +14,12 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('jenis_varian_id');
             $table->string('n_varian');
-            $table->integer('harga')->nullable()->default(null);
-            $table->integer('tambahan_harga')->nullable()->default(null);
-            $table->integer('stok')->nullable()->default(null);
 
             $table->timestamps();
 
             $table->foreign('jenis_varian_id')->references('id')->on('jenis_varian')->onDelete('restrict');
+
+            $table->unique(['jenis_varian_id', 'n_varian']);
         });
     }
 

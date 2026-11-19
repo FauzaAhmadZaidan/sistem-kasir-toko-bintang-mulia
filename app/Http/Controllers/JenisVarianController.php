@@ -83,4 +83,21 @@ class JenisVarianController extends Controller
             'data' => $jenisVarian,
         ], 200);
     }
+
+    public function getJenisVarians(){
+        $user = Auth::user();
+
+        if (!$user || $user->role != 'admin') {
+            return response()->json([
+                'message' => 'You are not authorized to perform this action',
+            ], 403);
+        }
+
+        $jenisVarians = jenis_varian::all();
+
+        return response()->json([
+            'message' => 'Jenis Varian fetched successfully',
+            'data' => $jenisVarians,
+        ], 200);
+    }
 }

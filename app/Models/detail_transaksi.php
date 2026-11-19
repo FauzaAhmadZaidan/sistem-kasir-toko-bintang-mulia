@@ -11,9 +11,8 @@ class detail_transaksi extends Model
 
     protected $fillable = [
         'transaksi_id',
-        'barang_id',
+        'sku_id',
         'jumlah',
-        'total_harga',
     ];
 
     public function transaksi()
@@ -24,5 +23,10 @@ class detail_transaksi extends Model
     public function barang()
     {
         return $this->belongsTo(barang::class);
+    }
+
+    public function sku()
+    {
+        return $this->belongsTo(sku::class);
     }
 }

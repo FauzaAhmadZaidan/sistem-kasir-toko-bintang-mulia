@@ -39,7 +39,7 @@ class barang extends Model
     public function varians()
     {
         return $this->belongsToMany(
-            Varian::class,
+            varian::class,
             'barang_varian',
             'barang_id',
             'varian_id'

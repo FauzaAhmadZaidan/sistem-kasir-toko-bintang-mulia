@@ -1,7 +1,6 @@
 import { Head } from '@inertiajs/react';
 import Kasir from '../partials/Kasir';
 import { useSesiKasir, type BarangKasir, type SkuKasir } from '../../pos/kasir';
-import '../../../css/workspace.css';
 
 const alatTulis = { id: 1, nama: 'Stationery' };
 const kemasan = { id: 2, nama: 'Packaging' };

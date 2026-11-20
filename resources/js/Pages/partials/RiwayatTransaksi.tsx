@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Icon from '../../components/Icon';
 import { jumlahItem, rupiah, type StrukSimulasi } from '../../pos/kasir';
 import { DialogStruk } from '../Cashier/PembayaranKasir';
+import '../../../css/kasir.css';
 
 export function DaftarStruk({ struk }: { struk: StrukSimulasi[] }) {
     const [dipilih, setDipilih] = useState<StrukSimulasi | null>(null);
@@ -25,7 +26,7 @@ export function DaftarStruk({ struk }: { struk: StrukSimulasi[] }) {
 }
 
 export default function RiwayatTransaksi({ struk }: { struk: StrukSimulasi[] }) {
-    return <section className="bmp-page">
+    return <section className="bmp-page bmp-riwayat">
         <div className="bmp-page-heading"><h1>Riwayat Transaksi</h1></div>
         <section className="bmp-panel">
             <div className="bmp-panel-heading"><div><h2>Struk simulasi</h2><p>Riwayat sesi ini akan kosong saat halaman dimuat ulang.</p></div><span className="bmp-count">{struk.length} struk</span></div>

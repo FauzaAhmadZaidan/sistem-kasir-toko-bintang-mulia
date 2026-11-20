@@ -3,6 +3,7 @@ import Icon from '../../components/Icon';
 import DialogKasir from '../../pos/components/DialogKasir';
 import { itemDariSku, jumlahItem, namaVarian, rupiah, type BarangKasir, type ItemKeranjang, type SesiKasir, type SkuKasir } from '../../pos/kasir';
 import PembayaranKasir from '../Cashier/PembayaranKasir';
+import '../../../css/kasir.css';
 
 function PengaturJumlah({ jumlah, maks, label, onChange }: {
     jumlah: number; maks: number; label: string; onChange: (nilai: number) => void;
@@ -129,7 +130,7 @@ export default function Kasir({ sesi, contoh }: Props) {
         setPesan(qty + ' ' + b.nama + ' ditambahkan ke keranjang.');
     }
 
-    return <section className="bmp-page">
+    return <section className="bmp-page bmp-kasir">
         <div className="bmp-page-heading"><h1>Kasir / Penjualan</h1>
             <button className="bmp-secondary bmp-jump-cart" onClick={() => document.getElementById('keranjang')?.focus()}>
                 <Icon name="kasir" size={16} />Keranjang ({jumlah})

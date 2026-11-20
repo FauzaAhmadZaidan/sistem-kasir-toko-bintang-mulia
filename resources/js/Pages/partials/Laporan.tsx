@@ -1,11 +1,11 @@
-import Icon from '../../components/Icon';
-
+/** Placeholder: ganti isi komponen ini dengan implementasi fitur sebenarnya. */
 export default function Laporan() {
-    return <section className="bmp-page">
-        <div className="bmp-page-heading"><h1>Laporan</h1></div>
-        <div className="bmp-panel bmp-history-empty">
-            <span className="bmp-empty-icon"><Icon name="laporan" /></span>
-            <div><strong>Laporan penjualan belum tersedia.</strong><p>Simulasi pembayaran kasir tidak masuk ke laporan penjualan.</p></div>
-        </div>
-    </section>;
+    return (
+        <section className="bmp-page">
+            <h1>Laporan</h1>
+            <div className="bmp-panel">
+                <p>Konten Laporan akan ditampilkan di area utama tanpa berpindah halaman.</p>
+            </div>
+        </section>
+    );
 }

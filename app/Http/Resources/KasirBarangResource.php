@@ -16,7 +16,7 @@ class KasirBarangResource extends JsonResource
         |--------------------------------------------------------------------------
         */
 
-        $varianAktifIds = $this->sku
+        $varianAktifIds = $this->skus
             ->flatMap(function ($sku) {
                 return $sku->varians->pluck('id');
             })
@@ -73,6 +73,7 @@ class KasirBarangResource extends JsonResource
 
         $skus = $this->skus
             ->map(function ($sku) {
+                $gambar = $sku->gambar ?? $this->gambar;
 
                 return [
                     'id' => $sku->id,
@@ -81,8 +82,8 @@ class KasirBarangResource extends JsonResource
                     'harga' => (int) $sku->harga,
                     'stok' => (int) $sku->stok,
 
-                    'gambar' => $sku->gambar
-                        ? url(Storage::disk('public')->url($sku->gambar))
+                    'gambar' => $gambar
+                        ? url(Storage::disk('public')->url($gambar))
                         : null,
 
                     'varian_ids' => $sku->varians

@@ -64,8 +64,9 @@ class BarangController extends Controller
         }
 
         $barang = barang::query()
+        ->where('status', 'aktif')
         ->whereHas('skus', function ($query) {
-            $query->where('status', 'aktif');
+            $query->where('status', 'aktif')->whereNotNull('harga');
         })
         ->with([
             'kategori',
@@ -74,7 +75,8 @@ class BarangController extends Controller
 
             'skus' => function ($query) {
                 $query->where('status', 'aktif')
-                ->with('varians');
+                    ->whereNotNull('harga')
+                    ->with('varians');
             },
         ])
         ->orderBy('n_barang')

@@ -28,7 +28,7 @@ Struktur controller, model dengan nama huruf kecil, `Auth::user()`, validator `V
 - Kode checkout dari frontend dipakai untuk mengembalikan transaksi yang sama saat permintaan diulang. Klik atau retry dengan kode yang sama tidak mengurangi stok dua kali. Payload berbeda dengan kode yang sudah dipakai ditolak. Jika halaman dimuat ulang setelah koneksi gagal, periksa riwayat sebelum membuat pembayaran baru.
 - `TransaksiResource.php`: menyusun data daftar dan detail; informasi akun yang ditampilkan hanya ID dan nama kasir.
 - Migrasi baru menambah nama kasir, kode checkout, indeks pencarian, serta salinan nama barang, kode SKU, varian, dan harga saat transaksi. Data lama tidak dihapus.
-- Transaksi lama yang belum mempunyai salinan harga menampilkan “Harga tidak tersimpan”. Total asli tetap ditampilkan; harga SKU terbaru tidak dianggap sebagai harga penjualan lama.
+- Transaksi lama yang belum mempunyai salinan harga satuan menampilkan “Harga tidak tersimpan”. Subtotal yang sebelumnya disimpan di `total_harga` dan total transaksi tetap ditampilkan.
 - Filter dan tampilan waktu memakai WIB. Waktu database baru mengikuti timezone Laravel (`config('app.timezone')`); batas tanggal WIB dikonversi saat query. Riwayat lama mengikuti interpretasi timezone konfigurasi aplikasi atas nilai `waktu` yang sudah tersimpan.
 
 | Method | Endpoint web dengan sesi login | Method controller |
@@ -77,9 +77,12 @@ git worktree add -b coba-laporan ../tokobm-laporan origin/feat/riwayat-transaksi
 
 Di folder baru, siapkan `.env` dan database uji sendiri, jalankan `composer install`, `npm ci`, `php artisan key:generate`, `php artisan migrate`, `npm run build`, lalu `php artisan serve`. Gunakan akun dan data barang uji yang sudah disiapkan. Tidak ada akun atau password demo yang ditambahkan oleh fitur ini.
 
-Migrasi yang diperlukan: `2026_11_23_000001_add_receipt_snapshot_to_transaksi.php`. Cukup `php artisan migrate`; tidak perlu `migrate:fresh`.
+Jalankan `php artisan migrate` untuk memasang kedua migrasi riwayat.
 
-Untuk database yang sudah memiliki sebagian kolom riwayat, migrasi melengkapi kolom dan indeks yang masih kurang. Jika mendapat `Duplicate column name 'nama_kasir'` dari versi sebelumnya, ambil pembaruan branch lalu ulangi `php artisan migrate`. Rollback migrasi ini mempertahankan kolom, indeks, dan data struk agar skema lama juga tetap utuh.
+1. `2026_11_23_000000_complete_legacy_transaction_columns.php` melengkapi `transaksi.waktu` dan `detail_transaksi.sku_id` jika belum ada. Waktu transaksi lama memakai `created_at` yang tercatat. Jika kedua waktu kosong, struk menampilkan “Waktu tidak tercatat”. Checkout tetap mengisi `barang_id` dan `total_harga` jika tabel masih memiliki kolom tersebut.
+2. `2026_11_23_000001_add_receipt_snapshot_to_transaksi.php` menambahkan kolom dan indeks riwayat yang belum ada.
+
+Jika percobaan sebelumnya gagal dengan `Duplicate column name 'nama_kasir'` atau `Key column 'waktu' doesn't exist`, ambil pembaruan branch lalu ulangi `php artisan migrate`. Kedua migrasi dan rollback-nya mempertahankan kolom yang sudah ada dan data struk.
 
 ## Menggabungkan perubahan
 
@@ -87,7 +90,7 @@ Draft PR menargetkan `ui/partials-kasir`. Perubahan laporan dapat ditinjau di at
 
 ## Validasi
 
-- `php artisan test` lulus dengan 22 tes dan 204 assertion di SQLite. Tes mencakup migrasi pada skema lama, hak akses web dan API, perubahan akun oleh admin, sinkronisasi katalog, detail struk, validasi dan retry checkout, filter WIB, ringkasan, serta pagination.
+- `php artisan test` lulus dengan 23 tes dan 221 assertion di SQLite. Kedua tes migrasi juga lulus di MariaDB 11.8 melalui driver MySQL Laravel, termasuk filter struk lama dan checkout setelah migrasi.
 - `npm run build` dan `npx tsc --noEmit`: lulus.
 - Browser Chromium pada database contoh terpisah: laporan admin, filter kasir, detail struk, checkout tunai, riwayat setelah refresh, serta layout viewport 390 dan 320 piksel. Fixture browser berada di luar repository.
 - Penguncian transaksi belum diuji dengan dua koneksi MySQL bersamaan; lakukan uji akhir di database uji Laragon sebelum dipakai operasional.

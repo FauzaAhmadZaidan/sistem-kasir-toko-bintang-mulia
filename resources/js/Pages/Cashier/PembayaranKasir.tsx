@@ -28,11 +28,11 @@ function bacaNominal(teks: string): number | null {
 
 function DaftarBelanja({ items }: { items: BarisStruk[] }) {
     return <ul className="bmp-receipt-lines">{items.map((item) => (
-        <li key={item.skuId}>
+        <li key={item.id}>
             <div><strong>{item.nama}</strong>{item.varian && <small>{item.varian}</small>}
                 <small>{item.jumlah} × {item.harga === null ? 'Harga tidak tersimpan' : rupiah(item.harga)}</small>
             </div>
-            <b>{item.harga === null ? '—' : rupiah(item.harga * item.jumlah)}</b>
+            <b>{item.subtotal === null ? '—' : rupiah(item.subtotal)}</b>
         </li>
     ))}</ul>;
 }
@@ -44,7 +44,9 @@ function IsiStruk({ struk }: { struk: StrukKasir }) {
                 <strong>Bintang Mulia Packaging</strong>
                 <span>Struk pembayaran · Tunai</span>
                 <code>{struk.nomor}</code>
-                <time dateTime={struk.waktu}>{waktuTransaksi(struk.waktu)} WIB</time>
+                {struk.waktu
+                    ? <time dateTime={struk.waktu}>{waktuTransaksi(struk.waktu)} WIB</time>
+                    : <span>Waktu tidak tercatat</span>}
                 <span>Kasir: {struk.kasir}</span>
             </div>
             <DaftarBelanja items={struk.items} />
@@ -151,7 +153,9 @@ export default function PembayaranKasir({ keranjang, tersedia, terakhir, onSeles
                 <button className="bmp-primary" type="submit" form={formId} disabled={menyimpan || (!belumPasti && !bolehBayar)}>{menyimpan ? 'Menyimpan…' : belumPasti ? 'Coba konfirmasi lagi' : 'Konfirmasi pembayaran'}</button>
             </>}>
             <form id={formId} noValidate onSubmit={(e) => { e.preventDefault(); selesaikan(); }}>
-                <DaftarBelanja items={keranjang} />
+                <DaftarBelanja items={keranjang.map((item) => ({
+                    ...item, id: item.skuId, subtotal: item.harga * item.jumlah,
+                }))} />
                 <div className="bmp-amount"><span>Total belanja</span><strong>{rupiah(cek.total)}</strong></div>
                 <label className="bmp-field-label" htmlFor={inputId}>Uang diterima (Rp)</label>
                 <input id={inputId} autoFocus className="bmp-input" type="text" inputMode="numeric" autoComplete="off"

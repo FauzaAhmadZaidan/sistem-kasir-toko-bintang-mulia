@@ -6,13 +6,13 @@ const http = axios.create({ timeout: 20000, headers: { Accept: 'application/json
 export type Transaksi = {
     id: number;
     invoice: string;
-    waktu: string;
+    waktu: string | null;
     kasir: { id: number; username: string };
     total: number;
     bayar: number;
     kembalian: number;
     jumlah_item: number;
-    items?: { sku_id: number; nama_barang: string; kode_sku: string | null; nama_varian: string; jumlah: number; harga: number | null; subtotal: number | null }[];
+    items?: { id: number; sku_id: number | null; nama_barang: string; kode_sku: string | null; nama_varian: string; jumlah: number; harga: number | null; subtotal: number | null }[];
 };
 
 export type FilterTransaksi = { cari: string; tanggal_mulai: string; tanggal_selesai: string; kasir_id: string };
@@ -56,8 +56,8 @@ export function strukDariTransaksi(data: Transaksi): StrukKasir {
         nomor: data.invoice, waktu: data.waktu, kasir: data.kasir.username,
         total: data.total, bayar: data.bayar, kembalian: data.kembalian,
         items: (data.items ?? []).map((item) => ({
-            skuId: item.sku_id, nama: item.nama_barang, varian: item.nama_varian,
-            jumlah: item.jumlah, harga: item.harga,
+            id: item.id, nama: item.nama_barang, varian: item.nama_varian,
+            jumlah: item.jumlah, harga: item.harga, subtotal: item.subtotal,
         })),
     };
 }

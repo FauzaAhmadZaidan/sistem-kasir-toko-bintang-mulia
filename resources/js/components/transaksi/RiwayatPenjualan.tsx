@@ -134,7 +134,9 @@ export default function RiwayatPenjualan({ admin = false }: { admin?: boolean })
                     <div className="bmp-report-table-wrap"><table className="bmp-report-table"><thead><tr><th scope="col">Nomor transaksi</th><th scope="col">Waktu (WIB)</th>{admin && <th scope="col">Kasir</th>}<th scope="col" className="is-number">Item</th><th scope="col" className="is-number">Total</th><th scope="col">Pembayaran</th><th scope="col"><span className="bmp-sr-only">Aksi</span></th></tr></thead>
                         <tbody>{data.data.map((t) => <tr key={t.id}>
                             <td className="bmp-report-invoice"><code>{t.invoice}</code></td>
-                            <td><span className="bmp-mobile-label">Waktu</span><time dateTime={t.waktu}>{waktuTransaksi(t.waktu)}</time></td>
+                            <td><span className="bmp-mobile-label">Waktu</span>{t.waktu
+                                ? <time dateTime={t.waktu}>{waktuTransaksi(t.waktu)}</time>
+                                : <span>Waktu tidak tercatat</span>}</td>
                             {admin && <td><span className="bmp-mobile-label">Kasir</span><span>{t.kasir.username}</span></td>}
                             <td className="is-number"><span className="bmp-mobile-label">Item</span><span>{t.jumlah_item.toLocaleString('id-ID')}</span></td>
                             <td className="is-number"><span className="bmp-mobile-label">Total</span><strong>{rupiah(t.total)}</strong></td>

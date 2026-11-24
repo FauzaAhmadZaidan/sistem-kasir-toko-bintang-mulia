@@ -29,11 +29,15 @@ export type ItemKeranjang = {
     jumlah: number;
 };
 
-export type BarisStruk = Omit<ItemKeranjang, 'stok' | 'harga'> & { harga: number | null };
+export type BarisStruk = Pick<ItemKeranjang, 'nama' | 'varian' | 'jumlah'> & {
+    id: number;
+    harga: number | null;
+    subtotal: number | null;
+};
 export type StrukKasir = {
     kasir: string;
     nomor: string;
-    waktu: string;
+    waktu: string | null;
     items: BarisStruk[];
     total: number;
     bayar: number;

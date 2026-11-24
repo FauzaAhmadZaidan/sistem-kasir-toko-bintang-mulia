@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator as Val;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -99,6 +100,7 @@ class TransaksiController extends Controller
                 throw ValidationException::withMessages(['bayar' => 'Uang diterima belum mencukupi total belanja.']);
             }
 
+            $kolomDetail = Schema::getColumnListing('detail_transaksi');
             $date = Carbon::now();
             $transaksi = transaksi::create([
                 'user_id' => $kasir->id,
@@ -114,7 +116,7 @@ class TransaksiController extends Controller
             foreach ($validatedData['items'] as $item) {
                 $sku = $skus->get($item['id']);
                 $produk = $barang->get($sku->barang_id);
-                detail_transaksi::create([
+                $detail = new detail_transaksi([
                     'transaksi_id' => $transaksi->id,
                     'sku_id' => $sku->id,
                     'jumlah' => $item['qty'],
@@ -123,6 +125,15 @@ class TransaksiController extends Controller
                     'nama_varian' => $sku->varians->pluck('n_varian')->implode(' · ') ?: ($produk->has_varian ? $sku->n_sku : ''),
                     'harga' => $sku->harga,
                 ]);
+                // Skema awal mewajibkan barang dan subtotal di setiap detail.
+                if (in_array('barang_id', $kolomDetail, true)) {
+                    $detail->barang_id = $produk->id;
+                }
+                if (in_array('total_harga', $kolomDetail, true)) {
+                    $detail->total_harga = (int) $sku->harga * (int) $item['qty'];
+                }
+                $detail->save();
+
                 $sku->stok -= $item['qty'];
                 $sku->save();
             }
@@ -130,7 +141,7 @@ class TransaksiController extends Controller
             return $transaksi;
         }, 3);
 
-        $hasil->load(['user', 'detail_transaksi.sku.barang']);
+        $hasil->load(['user', 'detail_transaksi.sku.barang', 'detail_transaksi.barang']);
 
         return response()->json([
             'message' => 'Action success',
@@ -216,7 +227,7 @@ class TransaksiController extends Controller
             return response()->json(['message' => 'You are not authorized to perform this action'], 403);
         }
 
-        $query = transaksi::with(['user', 'detail_transaksi.sku.barang']);
+        $query = transaksi::with(['user', 'detail_transaksi.sku.barang', 'detail_transaksi.barang']);
         if ($user->role === 'user') {
             $query->where('user_id', $user->id);
         }

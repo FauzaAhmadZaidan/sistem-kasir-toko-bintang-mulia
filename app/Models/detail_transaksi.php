@@ -13,6 +13,10 @@ class detail_transaksi extends Model
         'transaksi_id',
         'sku_id',
         'jumlah',
+        'nama_barang',
+        'kode_sku',
+        'nama_varian',
+        'harga',
     ];
 
     public function transaksi()

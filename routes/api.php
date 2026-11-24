@@ -60,4 +60,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     #Transaksi
     Route::post('/transaksi/store', [TransaksiController::class, 'SaveTransaction']);
+    Route::get('/transaksi', [TransaksiController::class, 'getTransaksi']);
+    Route::get('/transaksi/{id}', [TransaksiController::class, 'getDetailTransaksi'])->whereNumber('id');
 });

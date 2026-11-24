@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { lazy, Suspense, useState } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react';
+import type { CSSProperties, PropsWithChildren, ReactNode } from 'react';
+import { useSesiKasir, type SesiKasir } from '../pos/kasir';
 
 // Nama role sesuai isi kolom users.role di Laravel.
 type Role = 'admin' | 'user'; // 'user' berarti kasir
@@ -19,7 +20,7 @@ type IconName = 'menu' | 'logout' | 'home' | 'document' | 'users' | 'box' | 'cha
 
 interface AuthUser {
     id: number;
-    name: string;
+    username: string;
     role: string; // Diperiksa dulu sebelum dianggap sebagai Role.
 }
 
@@ -59,6 +60,26 @@ const ManajemenUser = lazy(() => import('./partials/ManajemenUser'));
 const Laporan = lazy(() => import('./partials/Laporan'));
 const Kasir = lazy(() => import('./partials/Kasir'));
 const RiwayatTransaksi = lazy(() => import('./partials/RiwayatTransaksi'));
+const DESKTOP = '(min-width: 641px)';
+const SesiKasirContext = createContext<SesiKasir | null>(null);
+
+function SesiKasirProvider({ children }: PropsWithChildren) {
+    const sesi = useSesiKasir();
+
+    return <SesiKasirContext.Provider value={sesi}>{children}</SesiKasirContext.Provider>;
+}
+
+function MainLayout({ children }: PropsWithChildren) {
+    const userId = usePage<MainPageProps>().props.auth?.user?.id;
+
+    return <SesiKasirProvider key={userId}>{children}</SesiKasirProvider>;
+}
+
+function menuDariUrl(items: NavItem[]): MenuKey {
+    const hash = typeof window === 'undefined' ? '' : window.location.hash.slice(1);
+
+    return items.find((item) => item.key === hash)?.key ?? 'dashboard';
+}
 
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
     const props = {
@@ -127,10 +148,11 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
 }
 
 function PageContent({ selectedMenu, user }: { selectedMenu: MenuKey; user: AuthUser }) {
+    const sesi = useContext(SesiKasirContext);
     let component: ReactNode;
     switch (selectedMenu) {
         case 'dashboard':
-            component = <Dashboard name={user.name} role={user.role as Role} />;
+            component = <Dashboard name={user.username} role={user.role as Role} />;
             break;
         case 'manajemen-barang':
             component = <ManajemenBarang />;
@@ -142,10 +164,10 @@ function PageContent({ selectedMenu, user }: { selectedMenu: MenuKey; user: Auth
             component = <Laporan />;
             break;
         case 'kasir':
-            component = <Kasir />;
+            component = sesi && <Kasir sesi={sesi} />;
             break;
         case 'riwayat-transaksi':
-            component = <RiwayatTransaksi />;
+            component = sesi && <RiwayatTransaksi struk={sesi.riwayat} />;
             break;
     }
     return <Suspense fallback={<p className="bmp-loading">Memuat konten...</p>}>{component}</Suspense>;
@@ -157,14 +179,32 @@ export default function Main() {
     const role: Role | null = user?.role === 'admin' || user?.role === 'user' ? user.role : null;
     const menuItems = role ? ROLE_MENUS[role] : [];
 
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    // Halaman pertama bagi semua role adalah Dashboard.
-    const [selectedMenu, setSelectedMenu] = useState<MenuKey>('dashboard');
+    const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.matchMedia(DESKTOP).matches);
+    const [selectedMenu, setSelectedMenu] = useState(() => menuDariUrl(menuItems));
+    const content = useRef<HTMLElement>(null);
+
+    useEffect(() => {
+        if (!role) return;
+        const media = window.matchMedia(DESKTOP);
+        const resize = () => setSidebarOpen(media.matches);
+        const navigate = () => {
+            setSelectedMenu(menuDariUrl(ROLE_MENUS[role]));
+            if (!media.matches) setSidebarOpen(false);
+            content.current?.scrollTo(0, 0);
+        };
+
+        media.addEventListener('change', resize);
+        window.addEventListener('hashchange', navigate);
+        return () => {
+            media.removeEventListener('change', resize);
+            window.removeEventListener('hashchange', navigate);
+        };
+    }, [role]);
 
     const selectMenu = (menu: MenuKey) => {
         if (!menuItems.some((item) => item.key === menu)) return;
-        setSelectedMenu(menu);
-        if (typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches) {
+        if (window.location.hash !== '#' + menu) window.location.hash = menu;
+        if (!window.matchMedia(DESKTOP).matches) {
             setSidebarOpen(false);
         }
     };
@@ -234,7 +274,7 @@ export default function Main() {
                         </nav>
                     </aside>
 
-                    <main className="bmp-content" id="bmp-content">
+                    <main ref={content} className="bmp-content" id="bmp-content">
                         {user && role && canShow ? (
                             <PageContent selectedMenu={selectedMenu} user={user} />
                         ) : (
@@ -252,6 +292,8 @@ export default function Main() {
         </>
     );
 }
+
+Main.layout = MainLayout;
 
 const styles = `
     .bmp-app,

@@ -1,10 +1,10 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BarangController;
 use App\Http\Controllers\DashboradController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -18,8 +18,14 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/kasir/dashboard', [DashboradController::class, 'userDashboard'])->name('dashboard.user');
 
-    Route::get('/kasir', function () {
-        return view('pos');
+    Route::get('/kasir/katalog', [BarangController::class, 'getBarang'])->name('kasir.katalog');
+
+    Route::get('/kasir', function (Request $request) {
+        if ($request->user()->role === 'admin') {
+            return redirect()->route('dashboard.admin');
+        }
+
+        return redirect(route('dashboard.user') . '#kasir');
     })->name('cashier');
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');

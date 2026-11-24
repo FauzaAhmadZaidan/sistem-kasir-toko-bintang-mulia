@@ -11,9 +11,11 @@ type MenuKey =
     | 'manajemen-user'
     | 'laporan'
     | 'kasir'
-    | 'riwayat-transaksi';
+    | 'riwayat-transaksi'
+    | 'testing'
+    ;
 
-type IconName = 'menu' | 'logout' | 'home' | 'document' | 'users' | 'box' | 'chart' | 'cart';
+type IconName = 'menu' | 'logout' | 'home' | 'document' | 'users' | 'box' | 'chart' | 'cart' | 'test';
 
 interface AuthUser {
     id: number;
@@ -40,6 +42,7 @@ const ROLE_MENUS: Record<Role, NavItem[]> = {
         { key: 'manajemen-barang', label: 'Manajemen Barang', icon: 'box' },
         { key: 'manajemen-user', label: 'Manajemen User', icon: 'users' },
         { key: 'laporan', label: 'Laporan', icon: 'chart' },
+        { key: 'testing', label: 'testing', icon: 'test'}
     ],
     user: [
         { key: 'dashboard', label: 'Dashboard', icon: 'home' },

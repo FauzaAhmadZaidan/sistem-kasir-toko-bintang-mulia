@@ -3,51 +3,43 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator as Val; 
+use Illuminate\Support\Facades\Validator as Val;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 
 class UserController extends Controller
 {
     //
-    public function createUser($request) {
-
-        $operator = Auth::users();
-
-        if ($operator->role != 'admin') {
-            return response()->json([
-                'message' => 'You are not authorized to perform this action',
-            ], 403);
-        }
-
-
-        $validator = Val::make($request->all(), [
-            'username' => 'required|min=8|string|unique:users',
-            'password' => 'required|min=8|string',
-            'confirm_password' => 'required|same:password',
+    public function createUser(Request $request): JsonResponse
+    {
+        // Semua field wajib diisi pada CREATE.
+        $validated = $request->validate([
+            'username' => ['required', 'string', 'max:255', Rule::unique('users', 'username')],
+            'password' => ['required', 'string', 'min:8'],
+            'role' => ['required', Rule::in(['admin', 'user'])],
+            'status' => ['required', 'boolean'],
+        ], [
+            'username.unique' => 'Username sudah terdaftar.',
+            'password.min' => 'Password minimal 8 karakter.',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
-        }
-
-        $validatedData = $validator->validated();
-
-        $newUser = User::create([
-            'username' => $validatedData['username'],
-            'password' => Hash::make($validatedData['password']),
+        User::query()->create([
+            'username' => $validated['username'],
+            'password' => Hash::make($validated['password']),
+            'role' => $validated['role'],
+            'status' => $validated['status'],
         ]);
 
-        return response()->json([
-            'message' => 'User created successfully',
-            'user' => $newUser
-        ]);
+        return response()->json(['message' => 'Akun berhasil dibuat.'], 201);
     }
 
-    public function deactiveUser($id) {
-
+    public function viewUsers()
+    {
         $operator = Auth::user();
 
         if ($operator->role != 'admin') {
@@ -56,106 +48,83 @@ class UserController extends Controller
             ], 403);
         }
 
-        $user = User::find($id);
+        $users = User::select('id', 'username', 'status', 'role')->orderBy('username', 'asc')->get();
 
-        if (!$user) {
-            return response()->json([
-                'message' => 'User not found',
-            ], 404);
-        }
+        $data = collect($users)->map(function ($item) {
+            $item['status'] = $item['status'] === 'aktif' ? true : false;
 
-        $user->status = 'tidak aktif';
-        $user->save();
-        return response()->json([
-            'message' => 'User deactivated successfully',
-            'user' => $user
-        ], 200);
-    }
-
-    public function reactiveUser($id) {
-
-        $operator = Auth::user();
-
-        if ($operator->role != 'admin') {
-            return response()->json([
-                'message' => 'You are not authorized to perform this action',
-            ], 403);
-        }
-
-        $user = User::find($id);
-        $user->status = 'aktif';
-        $user->save();
-        return response()->json([
-            'message' => 'User reactivated successfully',
-            'user' => $user
-        ], 200); 
-    }
-
-    public function editUser(Request $request, $id) {
-
-        $operator = Auth::user();
-
-        if ($operator->role != 'admin') {
-            return response()->json([
-                'message' => 'You are not authorized to perform this action',
-            ], 403);
-        }
-
-        $user = User::find($id);
-
-        if (!$user) {
-            return response()->json([
-                'message' => 'User not found',
-            ], 404);
-        }
-
-        $validator = Val::make($request->all(), [
-            'username' => 'sometimes|min:8|string|unique:users',
-            'password' => 'sometimes|min:8|string',
-            'confirm_password' => 'sometimes|same:password',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Action failed',
-                'errors' => $validator->errors(),
-            ], 400);
-        }
-
-        $validatedData = $validator->validated();
-
-        if (isset($validatedData['username'])) {
-            $user->username = $validatedData['username'];
-        }
-
-        if (isset($validatedData['password'])) {
-            $user->password = Hash::make($validatedData['password']);
-        }
-
-        $user->save();
-
-        return response()->json([
-            'message' => 'Data has been updated!',
-            'user' => $user
-        ], 200);
-
-    }
-
-    public function viewUsers() {
-
-        $operator = Auth::user();
-
-        if ($operator->role != 'admin') {
-            return response()->json([
-                'message' => 'You are not authorized to perform this action',
-            ], 403);
-        }
-
-        $data = User::all()->select('id', 'username', 'status');
+            return $item;
+        })->toArray(); 
 
         return response()->json([
             'message' => 'Data fetched successfully',
             'data' => $data
         ], 200);
+    }
+
+    public function checkUsernameAvail(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'username' => ['required', 'string', 'max:255'],
+        ]);
+
+        return response()->json([
+            'available' => ! User::query()
+                ->where('username', $validated['username'])
+                ->exists(),
+        ]);
+    }
+
+    public function editUser(Request $request, User $user): JsonResponse
+    {
+        // ID wajib ada pada URL /admin/users/{user} (route-model binding).
+        // Hanya field yang dikirim dan valid yang boleh diubah.
+        // Username TIDAK diterima dalam proses update.
+        $validated = $request->validate([
+            'role' => ['sometimes', 'required', Rule::in(['admin', 'user'])],
+            'status' => ['sometimes', 'required', 'boolean'],
+            'password' => ['sometimes', 'required', 'string', 'min:8'],
+        ], [
+            'password.min' => 'Password minimal 8 karakter.',
+        ]);
+
+        if ($validated === []) {
+            throw ValidationException::withMessages([
+                'form' => 'Kirim setidaknya satu field yang ingin diubah.',
+            ]);
+        }
+
+        // Perlindungan agar admin tidak menonaktifkan / menurunkan rolenya sendiri.
+        if ($request->user()->is($user)) {
+            if (array_key_exists('role', $validated) && $validated['role'] !== 'admin') {
+                throw ValidationException::withMessages([
+                    'role' => 'Tidak dapat mengubah role akun admin yang sedang digunakan.',
+                ]);
+            }
+            if (array_key_exists('status', $validated) && ! (bool) $validated['status']) {
+                throw ValidationException::withMessages([
+                    'status' => 'Tidak dapat menonaktifkan akun yang sedang digunakan.',
+                ]);
+            }
+        }
+
+        if (array_key_exists('role', $validated)) {
+            $user->role = $validated['role'];
+        }
+        if (array_key_exists('status', $validated)) {
+            $status = 'aktif';
+
+            if ($validated['status'] === false) {
+                $status = 'tidak aktif';
+            }
+
+            $user->status = $status;
+        }
+        if (array_key_exists('password', $validated)) {
+            $user->password = Hash::make($validated['password']);
+        }
+        $user->save();
+
+        return response()->json(['message' => 'Akun berhasil diperbarui.']);
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboradController;
+use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -21,8 +22,17 @@ Route::middleware('auth')->group(function () {
         return view('pos');
     })->name('cashier');
 
-    Route::post('/logout', [AuthController::class, 'logout'])
-        ->name('logout');
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+    Route::get('/admin/users/get-users', [UserController::class, 'viewUsers']);
+
+    Route::get('/admin/users/check-username', [UserController::class, 'checkUsernameAvail']);
+
+    Route::post('/admin/user/create',[UserController::class, 'createUser']);
+
+    Route::patch('/admin/users/edit/{user}', [UserController::class, 'editUser']);
+
+    Route::post('/admin/users/create', [UserController::class, 'createUser']);
 });
 
 Route::get('/cek-frontend', function () {

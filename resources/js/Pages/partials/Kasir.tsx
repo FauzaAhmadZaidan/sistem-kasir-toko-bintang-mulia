@@ -62,7 +62,7 @@ function BarisBarang({ barang, onPilih }: { barang: BarangKasir; onPilih: () => 
 }
 
 export default function Kasir({ sesi }: { sesi: SesiKasir }) {
-    const { keranjang, setKeranjang, riwayat, selesai } = sesi;
+    const { keranjang, setKeranjang, strukTerakhir, selesai } = sesi;
     const [barang, setBarang] = useState<BarangKasir[]>([]);
     const [status, setStatus] = useState<'memuat' | 'siap' | 'gagal'>('memuat');
     const [versi, setVersi] = useState(0);
@@ -173,10 +173,12 @@ export default function Kasir({ sesi }: { sesi: SesiKasir }) {
                 {berubah && <div className="bmp-notice" role="alert">Harga atau stok di katalog berubah. <button className="bmp-link" onClick={() => setKeranjang(terbaru)}>Sesuaikan keranjang</button></div>}
                 <div className="bmp-cart-footer">
                     <div className="bmp-total"><span>Total belanja</span><strong>{rupiah(total)}</strong></div>
-                    <PembayaranKasir keranjang={baris} tersedia={status === 'siap' && !berubah} terakhir={riwayat[0]} onSelesai={(struk) => {
-                        selesai(struk); setPesan('Simulasi pembayaran selesai.');
+                    <PembayaranKasir keranjang={baris} tersedia={status === 'siap' && !berubah} terakhir={strukTerakhir} onPerluMuatUlang={muatUlang} onSelesai={(struk) => {
+                        selesai(struk);
+                        setPesan('Pembayaran berhasil. Transaksi tersimpan di riwayat.');
+                        muatUlang();
                     }} />
-                    <p className="bmp-note">Simulasi tunai · Stok toko tetap.</p>
+                    <p className="bmp-note">Pembayaran tunai</p>
                 </div>
             </aside>
         </div>

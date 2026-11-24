@@ -29,8 +29,9 @@ export type ItemKeranjang = {
     jumlah: number;
 };
 
-export type BarisStruk = Omit<ItemKeranjang, 'stok'>;
-export type StrukSimulasi = {
+export type BarisStruk = Omit<ItemKeranjang, 'stok' | 'harga'> & { harga: number | null };
+export type StrukKasir = {
+    kasir: string;
     nomor: string;
     waktu: string;
     items: BarisStruk[];
@@ -58,16 +59,16 @@ export function itemDariSku(barang: BarangKasir, sku: SkuKasir, jumlah: number):
     return { skuId: sku.id, nama: barang.nama, varian: namaVarian(barang, sku), harga: sku.harga, stok: sku.stok, jumlah };
 }
 
-// Satu sesi mengikuti umur halaman Main. Data simulasi tidak disimpan sebagai penjualan toko.
+// Keranjang dan struk terakhir mengikuti sesi halaman. Riwayat penjualan dibaca dari server.
 export function useSesiKasir() {
     const [keranjang, setKeranjang] = useState<ItemKeranjang[]>([]);
-    const [riwayat, setRiwayat] = useState<StrukSimulasi[]>([]);
+    const [strukTerakhir, setStrukTerakhir] = useState<StrukKasir>();
 
-    function selesai(struk: StrukSimulasi) {
-        setRiwayat((lama) => [struk, ...lama]);
+    function selesai(struk: StrukKasir) {
+        setStrukTerakhir(struk);
         setKeranjang([]);
     }
 
-    return { keranjang, setKeranjang, riwayat, selesai };
+    return { keranjang, setKeranjang, strukTerakhir, selesai };
 }
 export type SesiKasir = ReturnType<typeof useSesiKasir>;

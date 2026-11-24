@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BarangController;
 use App\Http\Controllers\DashboradController;
 use App\Http\Controllers\SkuController;
+use App\Http\Controllers\TransaksiController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VarianController;
 use App\Http\Middleware\EnsureRole;
@@ -27,21 +28,21 @@ Route::middleware('auth')->group(function () {
         Route::post('/varian/add', [VarianController::class, 'tambahVarian']);
         Route::post('/sku/generate', [SkuController::class, 'generateSKU']);
         Route::post('/sku/edit', [SkuController::class, 'editSku']);
+
+        Route::get('/users/get-users', [UserController::class, 'viewUsers']);
+        Route::get('/users/check-username', [UserController::class, 'checkUsernameAvail']);
+        Route::post('/user/create', [UserController::class, 'createUser']);
+        Route::post('/users/create', [UserController::class, 'createUser']);
+        Route::patch('/users/edit/{user}', [UserController::class, 'editUser']);
     });
-
-    Route::get('/admin/users/get-users', [UserController::class, 'viewUsers']);
-
-    Route::get('/admin/users/check-username', [UserController::class, 'checkUsernameAvail']);
-
-    Route::post('/admin/user/create',[UserController::class, 'createUser']);
-
-    Route::patch('/admin/users/edit/{user}', [UserController::class, 'editUser']);
-
-    Route::post('/admin/users/create', [UserController::class, 'createUser']);
 
     Route::get('/kasir/dashboard', [DashboradController::class, 'userDashboard'])->name('dashboard.user');
 
     Route::get('/kasir/katalog', [BarangController::class, 'getBarang'])->name('kasir.katalog');
+
+    Route::post('/transaksi/store', [TransaksiController::class, 'SaveTransaction'])->name('transaksi.store');
+    Route::get('/transaksi', [TransaksiController::class, 'getTransaksi'])->name('transaksi.index');
+    Route::get('/transaksi/{id}', [TransaksiController::class, 'getDetailTransaksi'])->whereNumber('id')->name('transaksi.show');
 
     Route::get('/kasir', function (Request $request) {
         if ($request->user()->role === 'admin') {

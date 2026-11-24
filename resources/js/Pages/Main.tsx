@@ -164,7 +164,7 @@ function PageContent({ selectedMenu, user }: { selectedMenu: MenuKey; user: Auth
             component = sesi && <Kasir sesi={sesi} />;
             break;
         case 'riwayat-transaksi':
-            component = sesi && <RiwayatTransaksi struk={sesi.riwayat} />;
+            component = <RiwayatTransaksi />;
             break;
     }
     return <Suspense fallback={<p className="bmp-loading">Memuat konten...</p>}>{component}</Suspense>;

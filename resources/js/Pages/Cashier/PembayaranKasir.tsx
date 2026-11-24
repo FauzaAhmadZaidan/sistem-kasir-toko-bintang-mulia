@@ -2,7 +2,8 @@ import { useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import DialogKasir from '../../pos/components/DialogKasir';
 import Icon from '../../components/Icon';
-import { rupiah, type BarisStruk, type ItemKeranjang, type StrukSimulasi } from '../../pos/kasir';
+import { rupiah, type BarisStruk, type ItemKeranjang, type StrukKasir } from '../../pos/kasir';
+import { buatKodeCheckout, hasilBelumPasti, pesanTransaksi, simpanTransaksi, waktuTransaksi, type Checkout } from '../../pos/transaksi';
 
 function periksaKeranjang(items: ItemKeranjang[]) {
     if (!items.length) return { valid: false, total: 0 };
@@ -29,23 +30,25 @@ function DaftarBelanja({ items }: { items: BarisStruk[] }) {
     return <ul className="bmp-receipt-lines">{items.map((item) => (
         <li key={item.skuId}>
             <div><strong>{item.nama}</strong>{item.varian && <small>{item.varian}</small>}
-                <small>{item.jumlah} × {rupiah(item.harga)}</small>
+                <small>{item.jumlah} × {item.harga === null ? 'Harga tidak tersimpan' : rupiah(item.harga)}</small>
             </div>
-            <b>{rupiah(item.harga * item.jumlah)}</b>
+            <b>{item.harga === null ? '—' : rupiah(item.harga * item.jumlah)}</b>
         </li>
     ))}</ul>;
 }
 
-function IsiStruk({ struk }: { struk: StrukSimulasi }) {
+function IsiStruk({ struk }: { struk: StrukKasir }) {
     return (
         <div className="bmp-receipt">
             <div className="bmp-receipt-head">
                 <strong>Bintang Mulia Packaging</strong>
-                <span>Struk simulasi · Tunai</span>
+                <span>Struk pembayaran · Tunai</span>
                 <code>{struk.nomor}</code>
-                <time dateTime={struk.waktu}>{new Date(struk.waktu).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}</time>
+                <time dateTime={struk.waktu}>{waktuTransaksi(struk.waktu)} WIB</time>
+                <span>Kasir: {struk.kasir}</span>
             </div>
             <DaftarBelanja items={struk.items} />
+            {struk.items.some((item) => item.harga === null) && <p className="bmp-note">Transaksi lama ini belum menyimpan harga per barang. Total di bawah mengikuti nilai transaksi yang tercatat.</p>}
             <dl className="bmp-totals">
                 <div><dt>Total belanja</dt><dd>{rupiah(struk.total)}</dd></div>
                 <div><dt>Uang diterima</dt><dd>{rupiah(struk.bayar)}</dd></div>
@@ -55,9 +58,9 @@ function IsiStruk({ struk }: { struk: StrukSimulasi }) {
     );
 }
 
-export function DialogStruk({ struk, onTutup, onBaru }: { struk: StrukSimulasi; onTutup: () => void; onBaru?: () => void }) {
+export function DialogStruk({ struk, onTutup, onBaru }: { struk: StrukKasir; onTutup: () => void; onBaru?: () => void }) {
     return <>
-        <DialogKasir judul="Struk simulasi" onTutup={onTutup} footer={<>
+        <DialogKasir judul="Detail transaksi" onTutup={onTutup} footer={<>
             <button className="bmp-secondary" onClick={() => window.print()}><Icon name="cetak" size={16} />Cetak struk</button>
             <button className="bmp-primary" onClick={onBaru ?? onTutup}>{onBaru ? 'Transaksi baru' : 'Selesai'}</button>
         </>}>
@@ -70,14 +73,19 @@ export function DialogStruk({ struk, onTutup, onBaru }: { struk: StrukSimulasi; 
 type Props = {
     keranjang: ItemKeranjang[];
     tersedia: boolean;
-    terakhir?: StrukSimulasi;
-    onSelesai: (struk: StrukSimulasi) => void;
+    terakhir?: StrukKasir;
+    onSelesai: (struk: StrukKasir) => void;
+    onPerluMuatUlang?: () => void;
 };
 
-export default function PembayaranKasir({ keranjang, tersedia, terakhir, onSelesai }: Props) {
+export default function PembayaranKasir({ keranjang, tersedia, terakhir, onSelesai, onPerluMuatUlang }: Props) {
     const [tahap, setTahap] = useState<'tutup' | 'bayar' | 'struk'>('tutup');
     const [uang, setUang] = useState('');
     const konfirmasi = useRef(false);
+    const percobaan = useRef<Checkout | null>(null);
+    const [menyimpan, setMenyimpan] = useState(false);
+    const [belumPasti, setBelumPasti] = useState(false);
+    const [error, setError] = useState('');
     const formId = useId();
     const inputId = useId();
     const cek = periksaKeranjang(keranjang);
@@ -91,48 +99,72 @@ export default function PembayaranKasir({ keranjang, tersedia, terakhir, onSeles
     function bukaPembayaran() {
         if (!tersedia || !cek.valid) return;
         konfirmasi.current = false;
+        percobaan.current = null;
+        setError('');
+        setBelumPasti(false);
         setUang('');
         setTahap('bayar');
     }
 
-    function selesaikan() {
-        if (konfirmasi.current || !bolehBayar || bayar === null) return;
+    async function selesaikan() {
+        if (konfirmasi.current || (!belumPasti && !bolehBayar) || bayar === null) return;
         konfirmasi.current = true;
-        const sekarang = new Date();
-        const kode = globalThis.crypto?.randomUUID?.().slice(0, 8)
-            ?? sekarang.getTime().toString(36) + Math.random().toString(36).slice(2, 5);
-        onSelesai({
-            nomor: 'SIM-' + kode.toUpperCase(), waktu: sekarang.toISOString(),
-            items: keranjang.map(({ skuId, nama, varian, jumlah, harga }) => ({ skuId, nama, varian, jumlah, harga })),
-            total: cek.total, bayar, kembalian: bayar - cek.total,
-        });
-        setTahap('struk');
+        setMenyimpan(true);
+        setError('');
+        try {
+            // Kode dan payload tetap sama saat respons checkout belum diterima.
+            percobaan.current ??= {
+                kode_checkout: buatKodeCheckout(), total: cek.total, bayar,
+                items: keranjang.map((item) => ({ id: item.skuId, qty: item.jumlah, harga: item.harga })),
+            };
+            const struk = await simpanTransaksi(percobaan.current);
+            onSelesai(struk);
+            setBelumPasti(false);
+            percobaan.current = null;
+            setTahap('struk');
+        } catch (err) {
+            const tidakPasti = hasilBelumPasti(err);
+            setBelumPasti(tidakPasti);
+            setError(pesanTransaksi(err));
+            if (!tidakPasti) {
+                percobaan.current = null;
+                onPerluMuatUlang?.();
+            }
+        } finally {
+            konfirmasi.current = false;
+            setMenyimpan(false);
+        }
+    }
+
+    function tutupPembayaran() {
+        if (!menyimpan && !belumPasti) setTahap('tutup');
     }
 
     return <>
         <button className="bmp-primary bmp-wide" type="button" disabled={!tersedia || !cek.valid} onClick={bukaPembayaran}>
-            Lanjut pembayaran <Icon name="panah" size={17} />
+            Lanjut pembayaran
         </button>
-        {terakhir && <button type="button" className="bmp-link bmp-last-receipt" onClick={() => setTahap('struk')}>Lihat struk simulasi terakhir</button>}
-        {tahap === 'bayar' && <DialogKasir judul="Pembayaran tunai" keterangan="Simulasi" onTutup={() => setTahap('tutup')}
+        {terakhir && <button type="button" className="bmp-link bmp-last-receipt" onClick={() => setTahap('struk')}>Lihat struk terakhir</button>}
+        {tahap === 'bayar' && <DialogKasir judul="Pembayaran tunai" onTutup={tutupPembayaran}
             footer={<>
-                <button type="button" className="bmp-secondary" onClick={() => setTahap('tutup')}>Kembali</button>
-                <button className="bmp-primary" type="submit" form={formId} disabled={!bolehBayar}>Konfirmasi simulasi</button>
+                <button type="button" className="bmp-secondary" disabled={menyimpan || belumPasti} onClick={tutupPembayaran}>Kembali</button>
+                <button className="bmp-primary" type="submit" form={formId} disabled={menyimpan || (!belumPasti && !bolehBayar)}>{menyimpan ? 'Menyimpan…' : belumPasti ? 'Coba konfirmasi lagi' : 'Konfirmasi pembayaran'}</button>
             </>}>
             <form id={formId} noValidate onSubmit={(e) => { e.preventDefault(); selesaikan(); }}>
                 <DaftarBelanja items={keranjang} />
                 <div className="bmp-amount"><span>Total belanja</span><strong>{rupiah(cek.total)}</strong></div>
                 <label className="bmp-field-label" htmlFor={inputId}>Uang diterima (Rp)</label>
                 <input id={inputId} autoFocus className="bmp-input" type="text" inputMode="numeric" autoComplete="off"
-                    maxLength={32} value={uang} placeholder="Contoh 50.000" aria-invalid={invalid} aria-describedby={inputId + '-bantuan'}
+                    disabled={menyimpan || belumPasti} maxLength={32} value={uang} placeholder="Contoh 50.000" aria-invalid={invalid} aria-describedby={inputId + '-bantuan'}
                     onChange={(e) => setUang(e.target.value)} />
                 <div className="bmp-chips" aria-label="Nominal cepat">
-                    <button type="button" onClick={() => setUang(String(cek.total))}>Uang pas</button>
-                    {[20000, 50000, 100000].map((nilai) => <button type="button" key={nilai} onClick={() => setUang(String(nilai))}>{rupiah(nilai)}</button>)}
+                    <button type="button" disabled={menyimpan || belumPasti} onClick={() => setUang(String(cek.total))}>Uang pas</button>
+                    {[20000, 50000, 100000].map((nilai) => <button type="button" disabled={menyimpan || belumPasti} key={nilai} onClick={() => setUang(String(nilai))}>{rupiah(nilai)}</button>)}
                 </div>
                 <p id={inputId + '-bantuan'} role="status" className="bmp-error-text">{invalid ? pesan : ''}</p>
                 <div className="bmp-amount"><span>Kembalian</span><strong>{cukup && bayar !== null ? rupiah(bayar - cek.total) : '—'}</strong></div>
-                <p className="bmp-note">Simulasi ini tidak mencatat penjualan atau mengurangi stok toko.</p>
+                {error && <p className="bmp-error-text" role="alert">{error}</p>}
+                {belumPasti && <p className="bmp-notice">Status pembayaran belum diketahui. Gunakan “Coba konfirmasi lagi” untuk memeriksa dan menyelesaikan pembayaran yang sama. Jika perlu memuat ulang halaman, periksa riwayat sebelum membuat transaksi baru.</p>}
             </form>
         </DialogKasir>}
         {tahap === 'struk' && terakhir && <DialogStruk struk={terakhir} onTutup={() => setTahap('tutup')} onBaru={() => {

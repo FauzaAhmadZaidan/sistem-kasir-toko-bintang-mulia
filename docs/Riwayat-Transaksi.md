@@ -24,6 +24,7 @@ Struktur controller, model dengan nama huruf kecil, `Auth::user()`, validator `V
 
 - `TransaksiController.php`: melanjutkan method `SaveTransaction`, menambahkan `getTransaksi` dan `getDetailTransaksi`.
 - Identitas kasir dan waktu diambil dari server. Harga serta total dihitung dari SKU; total/harga yang dikirim frontend dipakai untuk mendeteksi katalog yang berubah. Nilai `user_id`, `waktu`, dan `kembalian` kiriman browser tidak dipercaya.
+- Nomor invoice dibuat oleh `SaveTransaction` memakai format awal `TR|id_kasir|ddmmyyHHmm` dalam WIB. Pembayaran kedua oleh kasir yang sama pada menit yang sama mendapat akhiran `|2`, dan seterusnya. UI menampilkan nomor dari respons checkout.
 - SKU dan barang harus aktif, harga harus terisi, jumlah harus positif, stok harus cukup, dan uang harus mencukupi. Penyimpanan detail dan pengurangan stok berada dalam satu transaksi database dengan penguncian baris.
 - Kode checkout dari frontend dipakai untuk mengembalikan transaksi yang sama saat permintaan diulang. Klik atau retry dengan kode yang sama tidak mengurangi stok dua kali. Payload berbeda dengan kode yang sudah dipakai ditolak. Jika halaman dimuat ulang setelah koneksi gagal, periksa riwayat sebelum membuat pembayaran baru.
 - `TransaksiResource.php`: menyusun data daftar dan detail; informasi akun yang ditampilkan hanya ID dan nama kasir.
@@ -84,13 +85,29 @@ Jalankan `php artisan migrate` untuk memasang kedua migrasi riwayat.
 
 Jika percobaan sebelumnya gagal dengan `Duplicate column name 'nama_kasir'` atau `Key column 'waktu' doesn't exist`, ambil pembaruan branch lalu ulangi `php artisan migrate`. Kedua migrasi dan rollback-nya mempertahankan kolom yang sudah ada dan data struk.
 
+Jika layar masih menampilkan **Struk simulasi** atau nomor `SIM-`, cek bahwa folder untuk menjalankan Laravel berada di branch `feat/riwayat-transaksi`. Hentikan server Laravel dan Vite lama, lalu jalankan dari folder itu:
+
+```powershell
+git fetch origin
+git switch feat/riwayat-transaksi
+git pull --ff-only origin feat/riwayat-transaksi
+php artisan config:clear
+php artisan route:clear
+php artisan route:list --path=transaksi
+if (Test-Path .\public\hot) { Remove-Item .\public\hot }
+npm.cmd run build
+php artisan serve --host=127.0.0.1 --port=8010
+```
+
+Buka `http://127.0.0.1:8010/login` untuk memastikan browser terhubung ke server yang baru. Rute web `POST transaksi/store` harus terlihat di daftar rute. Marker `public/hot` menunjuk ke server Vite lama jika tertinggal setelah Vite berhenti. Coba satu checkout baru dan cek nomor dari Laravel, stok, serta halaman riwayat setelah refresh. Struk simulasi lama hanya ada di sesi browser, sehingga tidak bisa muncul sebagai transaksi tersimpan.
+
 ## Menggabungkan perubahan
 
 Draft PR menargetkan `ui/partials-kasir`. Perubahan laporan dapat ditinjau di atas versi Manajemen Barang dan Manajemen User yang sudah ada di branch tersebut. Jika masih ada perubahan lokal, simpan dulu dan gabungkan ke branch integrasi. Periksa terutama `routes/web.php`, `Main.tsx`, `Kasir.tsx`, dan `PembayaranKasir.tsx` jika Git menemukan konflik.
 
 ## Validasi
 
-- `php artisan test` lulus dengan 23 tes dan 221 assertion di SQLite. Kedua tes migrasi juga lulus di MariaDB 11.8 melalui driver MySQL Laravel, termasuk filter struk lama dan checkout setelah migrasi.
+- `php artisan test` lulus dengan 24 tes dan 228 assertion di SQLite, termasuk format invoice awal dan dua pembayaran dalam menit yang sama. Kedua tes migrasi juga lulus di MariaDB 11.8 melalui driver MySQL Laravel, termasuk filter struk lama dan checkout setelah migrasi.
 - `npm run build` dan `npx tsc --noEmit`: lulus.
 - Browser Chromium pada database contoh terpisah: laporan admin, filter kasir, detail struk, checkout tunai, riwayat setelah refresh, serta layout viewport 390 dan 320 piksel. Fixture browser berada di luar repository.
 - Penguncian transaksi belum diuji dengan dua koneksi MySQL bersamaan; lakukan uji akhir di database uji Laragon sebelum dipakai operasional.

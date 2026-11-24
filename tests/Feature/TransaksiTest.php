@@ -138,6 +138,20 @@ class TransaksiTest extends TestCase
         $this->assertEquals(18, $this->sku->fresh()->stok);
     }
 
+    public function test_invoice_memakai_format_asli_dan_memiliki_urutan_dalam_menit_yang_sama(): void
+    {
+        $this->travelTo(now()->setTimezone('Asia/Jakarta')->setDate(2026, 11, 23)->setTime(10, 5));
+        $prefix = 'TR|' . $this->kasir->id . '|2311261005';
+        $this->actingAs($this->kasir);
+
+        $this->postJson('/transaksi/store', $this->payload())->assertOk()->assertJsonPath('data.invoice', $prefix);
+        $this->postJson('/transaksi/store', $this->payload())->assertOk()->assertJsonPath('data.invoice', $prefix . '|2');
+
+        $this->getJson('/transaksi')->assertOk()->assertJsonPath('data.0.invoice', $prefix . '|2')
+            ->assertJsonPath('data.1.invoice', $prefix);
+        $this->travelBack();
+    }
+
     public function test_struk_tetap_sama_setelah_nama_harga_dan_akun_diedit(): void
     {
         $id = $this->actingAs($this->kasir)->postJson('/transaksi/store', $this->payload())->assertOk()->json('data.id');

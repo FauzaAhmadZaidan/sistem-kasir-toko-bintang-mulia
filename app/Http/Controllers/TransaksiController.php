@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator as Val;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class TransaksiController extends Controller
@@ -102,11 +101,18 @@ class TransaksiController extends Controller
 
             $kolomDetail = Schema::getColumnListing('detail_transaksi');
             $date = Carbon::now();
+            $invoiceDasar = 'TR|' . $kasir->id . '|' . $date->copy()->timezone('Asia/Jakarta')->format('dmyHi');
+            $invoice = $invoiceDasar;
+            // Checkout kasir yang sama sudah dikunci. Tambahkan urutan jika menitnya sama.
+            for ($urutan = 2; transaksi::where('user_id', $kasir->id)->where('invoice', $invoice)->exists(); $urutan++) {
+                $invoice = $invoiceDasar . '|' . $urutan;
+            }
+
             $transaksi = transaksi::create([
                 'user_id' => $kasir->id,
                 'nama_kasir' => $kasir->username,
                 'kode_checkout' => $validatedData['kode_checkout'] ?? null,
-                'invoice' => 'TR|' . $kasir->id . '|' . $date->copy()->timezone('Asia/Jakarta')->format('dmyHis') . '|' . Str::upper(Str::random(8)),
+                'invoice' => $invoice,
                 'waktu' => $date,
                 'total' => $total,
                 'bayar' => $validatedData['bayar'],

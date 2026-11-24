@@ -96,10 +96,13 @@ php artisan route:clear
 php artisan route:list --path=transaksi
 if (Test-Path .\public\hot) { Remove-Item .\public\hot }
 npm.cmd run build
+if ($LASTEXITCODE -ne 0) { throw 'Build gagal. Cek pesan error sebelum menjalankan server.' }
 php artisan serve --host=127.0.0.1 --port=8010
 ```
 
 Buka `http://127.0.0.1:8010/login` untuk memastikan browser terhubung ke server yang baru. Rute web `POST transaksi/store` harus terlihat di daftar rute. Marker `public/hot` menunjuk ke server Vite lama jika tertinggal setelah Vite berhenti. Coba satu checkout baru dan cek nomor dari Laravel, stok, serta halaman riwayat setelah refresh. Struk simulasi lama hanya ada di sesi browser, sehingga tidak bisa muncul sebagai transaksi tersimpan.
+
+Build pada `public/build` bisa berasal dari branch yang dibuka sebelumnya walau branch Git sudah berganti dan `public/hot` kosong. Dashboard admin dan kasir kini memeriksa bahwa hasil build memuat modul transaksi. Bila muncul **Build kasir perlu diperbarui**, jalankan `npm.cmd run build` dari folder yang sama dengan server Laravel dan pastikan perintahnya berhasil. Bila hasil build sudah baru tetapi layar masih bertuliskan **Struk simulasi**, cocokkan alamat browser dengan alamat yang dicetak oleh `php artisan serve`.
 
 ## Menggabungkan perubahan
 
@@ -107,7 +110,7 @@ Draft PR menargetkan `ui/partials-kasir`. Perubahan laporan dapat ditinjau di at
 
 ## Validasi
 
-- `php artisan test` lulus dengan 24 tes dan 228 assertion di SQLite, termasuk format invoice awal dan dua pembayaran dalam menit yang sama. Kedua tes migrasi juga lulus di MariaDB 11.8 melalui driver MySQL Laravel, termasuk filter struk lama dan checkout setelah migrasi.
+- `php artisan test` lulus dengan 25 tes dan 234 assertion di SQLite, termasuk pemeriksaan build lama pada dashboard, format invoice awal, dan dua pembayaran dalam menit yang sama. Kedua tes migrasi juga lulus di MariaDB 11.8 melalui driver MySQL Laravel, termasuk filter struk lama dan checkout setelah migrasi.
 - `npm run build` dan `npx tsc --noEmit`: lulus.
 - Browser Chromium pada database contoh terpisah: laporan admin, filter kasir, detail struk, checkout tunai, riwayat setelah refresh, serta layout viewport 390 dan 320 piksel. Fixture browser berada di luar repository.
 - Penguncian transaksi belum diuji dengan dua koneksi MySQL bersamaan; lakukan uji akhir di database uji Laragon sebelum dipakai operasional.

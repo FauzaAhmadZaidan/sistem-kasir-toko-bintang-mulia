@@ -79,13 +79,15 @@ Di folder baru, siapkan `.env` dan database uji sendiri, jalankan `composer inst
 
 Migrasi yang diperlukan: `2026_11_23_000001_add_receipt_snapshot_to_transaksi.php`. Cukup `php artisan migrate`; tidak perlu `migrate:fresh`.
 
+Untuk database yang sudah memiliki sebagian kolom riwayat, migrasi melengkapi kolom dan indeks yang masih kurang. Jika mendapat `Duplicate column name 'nama_kasir'` dari versi sebelumnya, ambil pembaruan branch lalu ulangi `php artisan migrate`. Rollback migrasi ini mempertahankan kolom, indeks, dan data struk agar skema lama juga tetap utuh.
+
 ## Menggabungkan perubahan
 
 Draft PR menargetkan `ui/partials-kasir`. Perubahan laporan dapat ditinjau di atas versi Manajemen Barang dan Manajemen User yang sudah ada di branch tersebut. Jika masih ada perubahan lokal, simpan dulu dan gabungkan ke branch integrasi. Periksa terutama `routes/web.php`, `Main.tsx`, `Kasir.tsx`, dan `PembayaranKasir.tsx` jika Git menemukan konflik.
 
 ## Validasi
 
-- `php artisan test` lulus dengan 21 tes dan 193 assertion di SQLite. Tes mencakup hak akses web dan API, perubahan akun oleh admin, sinkronisasi katalog, detail struk, validasi dan retry checkout, filter WIB, ringkasan, serta pagination.
+- `php artisan test` lulus dengan 22 tes dan 204 assertion di SQLite. Tes mencakup migrasi pada skema lama, hak akses web dan API, perubahan akun oleh admin, sinkronisasi katalog, detail struk, validasi dan retry checkout, filter WIB, ringkasan, serta pagination.
 - `npm run build` dan `npx tsc --noEmit`: lulus.
 - Browser Chromium pada database contoh terpisah: laporan admin, filter kasir, detail struk, checkout tunai, riwayat setelah refresh, serta layout viewport 390 dan 320 piksel. Fixture browser berada di luar repository.
 - Penguncian transaksi belum diuji dengan dua koneksi MySQL bersamaan; lakukan uji akhir di database uji Laragon sebelum dipakai operasional.

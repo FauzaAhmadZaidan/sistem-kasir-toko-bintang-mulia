@@ -8,33 +8,31 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('transaksi', function (Blueprint $table) {
-            $table->string('nama_kasir')->nullable();
-            $table->uuid('kode_checkout')->nullable();
-            $table->unique(['user_id', 'kode_checkout']);
-            $table->index(['user_id', 'waktu']);
-            $table->index('waktu');
-        });
+        // Database lama atau migrasi MySQL yang terhenti bisa sudah memiliki sebagian kolom.
+        Schema::whenTableDoesntHaveColumn('transaksi', 'nama_kasir',
+            fn (Blueprint $table) => $table->string('nama_kasir')->nullable());
+        Schema::whenTableDoesntHaveColumn('transaksi', 'kode_checkout',
+            fn (Blueprint $table) => $table->uuid('kode_checkout')->nullable());
 
-        Schema::table('detail_transaksi', function (Blueprint $table) {
-            $table->string('nama_barang')->nullable();
-            $table->string('kode_sku')->nullable();
-            $table->text('nama_varian')->nullable();
-            $table->integer('harga')->nullable();
-        });
+        Schema::whenTableDoesntHaveIndex('transaksi', ['user_id', 'kode_checkout'],
+            fn (Blueprint $table) => $table->unique(['user_id', 'kode_checkout']), 'unique');
+        Schema::whenTableDoesntHaveIndex('transaksi', ['user_id', 'waktu'],
+            fn (Blueprint $table) => $table->index(['user_id', 'waktu']));
+        Schema::whenTableDoesntHaveIndex('transaksi', ['waktu'],
+            fn (Blueprint $table) => $table->index('waktu'));
+
+        Schema::whenTableDoesntHaveColumn('detail_transaksi', 'nama_barang',
+            fn (Blueprint $table) => $table->string('nama_barang')->nullable());
+        Schema::whenTableDoesntHaveColumn('detail_transaksi', 'kode_sku',
+            fn (Blueprint $table) => $table->string('kode_sku')->nullable());
+        Schema::whenTableDoesntHaveColumn('detail_transaksi', 'nama_varian',
+            fn (Blueprint $table) => $table->text('nama_varian')->nullable());
+        Schema::whenTableDoesntHaveColumn('detail_transaksi', 'harga',
+            fn (Blueprint $table) => $table->integer('harga')->nullable());
     }
 
     public function down(): void
     {
-        Schema::table('detail_transaksi', function (Blueprint $table) {
-            $table->dropColumn(['nama_barang', 'kode_sku', 'nama_varian', 'harga']);
-        });
-
-        Schema::table('transaksi', function (Blueprint $table) {
-            $table->dropUnique(['user_id', 'kode_checkout']);
-            $table->dropIndex(['user_id', 'waktu']);
-            $table->dropIndex(['waktu']);
-            $table->dropColumn(['nama_kasir', 'kode_checkout']);
-        });
+        // Pertahankan kolom dan indeks yang mungkin sudah ada, beserta data struknya.
     }
 };

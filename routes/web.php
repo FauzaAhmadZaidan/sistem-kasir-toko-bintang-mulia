@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BarangController;
 use App\Http\Controllers\DashboradController;
 use App\Http\Controllers\SkuController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\VarianController;
 use App\Http\Middleware\EnsureRole;
 use Illuminate\Http\Request;
@@ -27,6 +28,16 @@ Route::middleware('auth')->group(function () {
         Route::post('/sku/generate', [SkuController::class, 'generateSKU']);
         Route::post('/sku/edit', [SkuController::class, 'editSku']);
     });
+
+    Route::get('/admin/users/get-users', [UserController::class, 'viewUsers']);
+
+    Route::get('/admin/users/check-username', [UserController::class, 'checkUsernameAvail']);
+
+    Route::post('/admin/user/create',[UserController::class, 'createUser']);
+
+    Route::patch('/admin/users/edit/{user}', [UserController::class, 'editUser']);
+
+    Route::post('/admin/users/create', [UserController::class, 'createUser']);
 
     Route::get('/kasir/dashboard', [DashboradController::class, 'userDashboard'])->name('dashboard.user');
 

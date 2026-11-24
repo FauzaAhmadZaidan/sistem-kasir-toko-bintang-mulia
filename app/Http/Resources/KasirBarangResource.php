@@ -4,7 +4,6 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class KasirBarangResource extends JsonResource
 {
@@ -83,7 +82,7 @@ class KasirBarangResource extends JsonResource
                     'stok' => (int) $sku->stok,
 
                     'gambar' => $gambar
-                        ? url(Storage::disk('public')->url($gambar))
+                        ? asset('storage/' . $gambar)
                         : null,
 
                     'varian_ids' => $sku->varians

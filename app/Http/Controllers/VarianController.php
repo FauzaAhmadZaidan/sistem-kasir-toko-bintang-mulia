@@ -113,21 +113,33 @@ class VarianController extends Controller
         }
 
         $validator = Val::make($request->all(), [
-            'jenis_varian' => 'required|string',
+            'jenis_varian' => 'required|string|max:255',
             'barang_id' => 'required|integer|exists:barang,id',
-            'varian' => 'required|array|min:1',
-            'varian.*' => 'required|string|distinct:ignore_case',
+            'varian' => 'required|array|min:1|max:500',
+            'varian.*' => 'required|string|max:255|distinct:ignore_case',
         ]);
 
         $validatedData = $validator->validated();
 
         DB::transaction(function () use ($validatedData) {
-            $jenisVarian = jenis_varian::firstOrCreate([
+            $barang = barang::query()->lockForUpdate()->findOrFail($validatedData['barang_id']);
+            abort_unless($barang->has_varian, 409, 'Aktifkan varian untuk barang ini terlebih dahulu.');
+
+            $jenisVarian = jenis_varian::firstOrNew([
                 'n_jenis_varian' => $validatedData['jenis_varian'],
             ]);
 
-            barang_jenis_varian::create([
-                'barang_id' => $validatedData['barang_id'],
+            if ($barang->skus()->exists()) {
+                abort_unless($jenisVarian->exists && $barang->jenis_varians()->whereKey($jenisVarian->id)->exists(),
+                    409, 'Jenis varian baru tidak bisa ditambahkan setelah SKU dibuat.');
+            }
+
+            if (!$jenisVarian->exists) {
+                $jenisVarian = jenis_varian::firstOrCreate(['n_jenis_varian' => $validatedData['jenis_varian']]);
+            }
+
+            barang_jenis_varian::firstOrCreate([
+                'barang_id' => $barang->id,
                 'jenis_varian_id' => $jenisVarian->id,
             ]);
 
@@ -137,10 +149,20 @@ class VarianController extends Controller
                     'n_varian' => $n_varian,
                 ]);
 
-                barang_varian::create([
-                    'barang_id' => $validatedData['barang_id'],
+                barang_varian::firstOrCreate([
+                    'barang_id' => $barang->id,
                     'varian_id' => $varian->id,
                 ]);
+            }
+
+            $jumlahPilihan = $barang->varians()
+                ->get(['varian.id', 'varian.jenis_varian_id'])
+                ->countBy('jenis_varian_id');
+            $kombinasi = 1;
+
+            foreach ($jumlahPilihan as $jumlah) {
+                $kombinasi *= $jumlah;
+                abort_if($kombinasi > 500, 422, 'Pilihan ini melebihi batas 500 kombinasi SKU per barang.');
             }
         });
 

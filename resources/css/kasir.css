@@ -8,12 +8,7 @@
     font-variant-numeric: tabular-nums;
 }
 .bmp-kasir { container-type: inline-size; }
-.bmp-preview {
-    min-height: 100dvh;
-    background: #f2f4ff;
-}
-.bmp-preview, .bmp-dialog { font-family: Arial, Helvetica, sans-serif; }
-.bmp-preview .bmp-kasir { padding: 26px; }
+.bmp-dialog { font-family: Arial, Helvetica, sans-serif; }
 :is(.bmp-kasir, .bmp-riwayat, .bmp-dialog) :focus-visible {
     outline: 2px solid #6883cd;
     outline-offset: 2px;
@@ -160,9 +155,6 @@
     .bmp-cart { position: static; }
     .bmp-jump-cart { display: inline-flex; }
     .bmp-page-heading { align-items: flex-start; flex-wrap: wrap; gap: 8px; }
-}
-@media (max-width: 640px) {
-    .bmp-preview .bmp-kasir { padding: 18px; }
 }
 @media (max-width: 540px) {
     .bmp-page-heading { margin-bottom: 15px; }

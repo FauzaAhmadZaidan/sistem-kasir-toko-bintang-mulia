@@ -61,11 +61,10 @@ function BarisBarang({ barang, onPilih }: { barang: BarangKasir; onPilih: () => 
     </button>;
 }
 
-type Props = { sesi: SesiKasir; contoh?: BarangKasir[] };
-export default function Kasir({ sesi, contoh }: Props) {
+export default function Kasir({ sesi }: { sesi: SesiKasir }) {
     const { keranjang, setKeranjang, riwayat, selesai } = sesi;
-    const [barang, setBarang] = useState<BarangKasir[]>(contoh ?? []);
-    const [status, setStatus] = useState<'memuat' | 'siap' | 'gagal'>(contoh ? 'siap' : 'memuat');
+    const [barang, setBarang] = useState<BarangKasir[]>([]);
+    const [status, setStatus] = useState<'memuat' | 'siap' | 'gagal'>('memuat');
     const [versi, setVersi] = useState(0);
     const [error, setError] = useState('');
     const [pencarian, setPencarian] = useState('');
@@ -74,7 +73,6 @@ export default function Kasir({ sesi, contoh }: Props) {
     const [pesan, setPesan] = useState('');
 
     useEffect(() => {
-        if (contoh) return;
         const controller = new AbortController();
         async function muat() {
             try {
@@ -95,7 +93,7 @@ export default function Kasir({ sesi, contoh }: Props) {
         }
         void muat();
         return () => controller.abort();
-    }, [contoh, versi]);
+    }, [versi]);
 
     function muatUlang() {
         setStatus('memuat');
@@ -136,11 +134,10 @@ export default function Kasir({ sesi, contoh }: Props) {
                 <Icon name="kasir" size={16} />Keranjang ({jumlah})
             </button>
         </div>
-        {contoh && <p className="bmp-notice">Pratinjau lokal menggunakan data contoh.</p>}
         <div className="bmp-pos-grid">
             <section className="bmp-panel bmp-catalog" aria-labelledby="judul-katalog">
                 <div className="bmp-panel-heading"><h2 id="judul-katalog">Katalog barang</h2>
-                    {!contoh && <button type="button" className="bmp-icon-button" aria-label="Muat ulang katalog" title="Muat ulang katalog" disabled={status === 'memuat'} onClick={muatUlang}><Icon name="ulang" size={17} /></button>}
+                    <button type="button" className="bmp-icon-button" aria-label="Muat ulang katalog" title="Muat ulang katalog" disabled={status === 'memuat'} onClick={muatUlang}><Icon name="ulang" size={17} /></button>
                 </div>
                 <div className="bmp-filters">
                     <label className="bmp-search"><Icon name="cari" size={18} /><input id="pencarian" type="search" value={pencarian}

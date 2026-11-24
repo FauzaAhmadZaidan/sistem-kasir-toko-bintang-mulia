@@ -3,6 +3,9 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BarangController;
 use App\Http\Controllers\DashboradController;
+use App\Http\Controllers\SkuController;
+use App\Http\Controllers\VarianController;
+use App\Http\Middleware\EnsureRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -14,6 +17,16 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth')->group(function () {
     Route::get('/admin/dashboard', [DashboradController::class, 'adminDashboard'])->name('dashboard.admin');
+
+    Route::prefix('admin')->middleware(EnsureRole::class . ':admin')->group(function () {
+        Route::get('/barang', [BarangController::class, 'getBarangAdmin'])->name('admin.barang');
+        Route::post('/barang/add', [BarangController::class, 'tambahBarang']);
+        Route::post('/barang/edit', [BarangController::class, 'editBarang']);
+        Route::post('/barang/foto', [BarangController::class, 'simpanFoto']);
+        Route::post('/varian/add', [VarianController::class, 'tambahVarian']);
+        Route::post('/sku/generate', [SkuController::class, 'generateSKU']);
+        Route::post('/sku/edit', [SkuController::class, 'editSku']);
+    });
 
     Route::get('/kasir/dashboard', [DashboradController::class, 'userDashboard'])->name('dashboard.user');
 
@@ -36,10 +49,4 @@ Route::get('/cek-frontend', function () {
         'namaToko' => 'Toko Bintang Mulia',
     ]);
 });
-
-Route::get('/preview/kasir', function () {
-    abort_unless(app()->environment('local'), 404);
-
-    return Inertia::render('Cashier/Index');
-})->name('preview.kasir');
 

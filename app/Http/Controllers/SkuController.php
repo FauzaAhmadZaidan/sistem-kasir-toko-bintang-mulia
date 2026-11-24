@@ -6,6 +6,7 @@ use App\Models\barang;
 use App\Models\sku;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator as Val;
 
@@ -35,25 +36,15 @@ class SkuController extends Controller
 
         $validatedData = $validator->validated();
 
-        $barang = barang::find($validatedData['barang_id']);
-
-        if (!$barang) {
-            return response()->json([
-                'message' => 'Barang not found',
-            ], 404);
-        }
-
-        if ($barang->has_varian === null) {
-            return response()->json([
-                'message' => 'Varian belum dikonfigurasikan',
-            ], 400);
-        }
-
-        $hasil = DB::transaction(function () use ($barang, $validatedData) {
-            $barang = Barang::query()
-                ->whereKey($barang->id)
+        $hasil = DB::transaction(function () use ($validatedData) {
+            $barang = barang::query()
+                ->whereKey($validatedData['barang_id'])
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if ($barang->has_varian === null) {
+                return ['action' => 'failed', 'message' => 'Varian belum dikonfigurasikan'];
+            }
 
             $jenis_varians = DB::table('barang_jenis_varian as bjv')
                 ->join('jenis_varian as jv', 'bjv.jenis_varian_id', '=', 'jv.id')
@@ -89,19 +80,13 @@ class SkuController extends Controller
                     ->get();
 
                 if ($pilihan->isEmpty()) {
-                    return response()->json([
-                        'message' => 'Action failed',
-                        'error' => 'Tidak ada varian untuk jenis varian ' . $jenis->n_jenis_varian
-                    ], 400);
+                    return ['action' => 'failed', 'message' => 'Tidak ada varian untuk jenis varian ' . $jenis->n_jenis_varian];
                 }
 
                 $total_kombinasi *= $pilihan->count();
 
                 if ($total_kombinasi > 500) {
-                    return response()->json([
-                        'message' => 'Action failed',
-                        'error' => 'Kombinasi varian terlalu banyak'
-                    ]);
+                    return ['action' => 'failed', 'message' => 'Maksimal 500 kombinasi varian per barang.'];
                 }
 
                 $grup_varians[] = $pilihan->all();
@@ -129,6 +114,10 @@ class SkuController extends Controller
 
             $dibuat = [];
             $dilewati = 0;
+            $kombinasiTersimpan = $barang->skus()
+                ->with('varians:id')
+                ->get(['id', 'barang_id'])
+                ->keyBy(fn (sku $item) => $item->varians->pluck('id')->sort(SORT_NUMERIC)->implode('-'));
 
             foreach ($kombinasi as $pilihanVarian) {
                 $ids = array_map(
@@ -142,7 +131,8 @@ class SkuController extends Controller
                 );
 
                 if (
-                    sku::query()
+                    $kombinasiTersimpan->has(collect($ids)->sort(SORT_NUMERIC)->implode('-'))
+                    || sku::query()
                         ->where('key', $key)
                         ->exists()
                 ) {
@@ -189,12 +179,11 @@ class SkuController extends Controller
 
                 $sku = sku::create([
                     'barang_id' => $barang->id,
-                    'kode_sku' => $kodeSKU,
-                    'n_sku' => $namaSKU,
+                    'kode_sku' => mb_substr($kodeSKU, 0, 255),
+                    'n_sku' => mb_substr($namaSKU, 0, 255),
                     'key' => $key,
                     'harga' => 0,
                     'stok' => 0,
-                    'gambar' => null,
                     'status' => 'tidak aktif'
                 ]);
 
@@ -284,11 +273,12 @@ class SkuController extends Controller
 
         $validator = Val::make($request->all(), [
             'id' => 'required|integer',
-            'harga' => 'sometimes|integer',
-            'stok' => 'sometimes|integer',
-            'status' => 'sometimes|string',
+            'harga' => 'sometimes|integer|min:0|max:2147483647',
+            'stok' => 'sometimes|integer|min:0|max:2147483647',
+            'stok_sebelumnya' => 'sometimes|present|nullable|integer',
+            'status' => 'sometimes|in:aktif,tidak aktif',
             'gambar' => 'sometimes|string',
-            'n_sku' => 'sometimes|string',
+            'n_sku' => 'sometimes|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -300,42 +290,26 @@ class SkuController extends Controller
 
         $validatedData = $validator->validated();
 
-        $sku = sku::find($validatedData['id']);
+        return DB::transaction(function () use ($validatedData) {
+            $sku = sku::query()->lockForUpdate()->find($validatedData['id']);
 
-        if (!$sku) {
+            if (!$sku) {
+                return response()->json(['message' => 'Sku not found'], 404);
+            }
+
+            $stokSebelumnya = $validatedData['stok_sebelumnya'] ?? null;
+            if (isset($validatedData['stok']) && array_key_exists('stok_sebelumnya', $validatedData)
+                && ($sku->stok === null ? null : (int) $sku->stok) !== ($stokSebelumnya === null ? null : (int) $stokSebelumnya)) {
+                return response()->json(['message' => 'Stok berubah sejak formulir dibuka. Muat ulang barang dan periksa stok terbaru.'], 409);
+            }
+
+            $sku->update(Arr::only($validatedData, ['harga', 'stok', 'status', 'gambar', 'n_sku']));
+
             return response()->json([
-                'message' => 'Sku not found',
-            ], 404);
-        }
-
-        if (isset($validatedData['harga'])) {
-            $sku->harga = $validatedData['harga'];
-        }
-
-        if (isset($validatedData['stok'])) {
-            $sku->stok = $validatedData['stok'];
-        }
-
-        if (isset($validatedData['status'])) {
-            $sku->status = $validatedData['status'];
-        }
-
-        if (isset($validatedData['gambar'])) {
-            $sku->gambar = $validatedData['gambar'];
-        }
-
-        if (isset($validatedData['n_sku'])) {
-            $sku->n_sku = $validatedData['n_sku'];
-        }
-
-        $sku->save();
-
-        return response()->json([
-            'message' => 'Sku has been updated successfully',
-            'data' => $sku,
-        ]);
-
-        //Rediant Was Here ;)
+                'message' => 'Sku has been updated successfully',
+                'data' => $sku,
+            ]);
+        });
     }
 
 
@@ -347,7 +321,7 @@ class SkuController extends Controller
             $kata
         );
 
-        $kode = strtoupper(substr($ubah, 0, $jumlah));
+        $kode = mb_strtoupper(mb_substr($ubah, 0, $jumlah));
 
         return $kode;
     }

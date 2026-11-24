@@ -78,12 +78,15 @@ git worktree add -b coba-laporan ../tokobm-laporan origin/feat/riwayat-transaksi
 
 Di folder baru, siapkan `.env` dan database uji sendiri, jalankan `composer install`, `npm ci`, `php artisan key:generate`, `php artisan migrate`, `npm run build`, lalu `php artisan serve`. Gunakan akun dan data barang uji yang sudah disiapkan. Tidak ada akun atau password demo yang ditambahkan oleh fitur ini.
 
-Jalankan `php artisan migrate` untuk memasang kedua migrasi riwayat.
+Jalankan `php artisan migrate` untuk menyesuaikan database dengan fitur riwayat.
 
 1. `2026_11_23_000000_complete_legacy_transaction_columns.php` melengkapi `transaksi.waktu` dan `detail_transaksi.sku_id` jika belum ada. Waktu transaksi lama memakai `created_at` yang tercatat. Jika kedua waktu kosong, struk menampilkan “Waktu tidak tercatat”. Checkout tetap mengisi `barang_id` dan `total_harga` jika tabel masih memiliki kolom tersebut.
 2. `2026_11_23_000001_add_receipt_snapshot_to_transaksi.php` menambahkan kolom dan indeks riwayat yang belum ada.
+3. `2026_11_24_000001_add_status_to_legacy_users.php` menambahkan `users.status` jika kolomnya belum ada, dengan default `aktif` sesuai skema proyek. Database yang sudah memiliki status mempertahankan nilai setiap akun.
 
-Jika percobaan sebelumnya gagal dengan `Duplicate column name 'nama_kasir'` atau `Key column 'waktu' doesn't exist`, ambil pembaruan branch lalu ulangi `php artisan migrate`. Kedua migrasi dan rollback-nya mempertahankan kolom yang sudah ada dan data struk.
+Jika percobaan sebelumnya gagal dengan `Duplicate column name 'nama_kasir'` atau `Key column 'waktu' doesn't exist`, ambil pembaruan branch lalu ulangi `php artisan migrate`. Migrasi ini mempertahankan kolom yang sudah ada dan data struk.
+
+Halaman kasir dapat terbuka saat login dikenali. Saat konfirmasi, Laravel juga memeriksa bahwa role akun adalah `user` dan statusnya `aktif`. Kalau akun disetel **Tidak Aktif**, admin dapat mengubah statusnya lewat **Manajemen User**.
 
 Jika layar masih menampilkan **Struk simulasi** atau nomor `SIM-`, cek bahwa folder untuk menjalankan Laravel berada di branch `feat/riwayat-transaksi`. Hentikan server Laravel dan Vite lama, lalu jalankan dari folder itu:
 
@@ -110,7 +113,7 @@ Draft PR menargetkan `ui/partials-kasir`. Perubahan laporan dapat ditinjau di at
 
 ## Validasi
 
-- `php artisan test` lulus dengan 25 tes dan 234 assertion di SQLite, termasuk pemeriksaan build lama pada dashboard, format invoice awal, dan dua pembayaran dalam menit yang sama. Kedua tes migrasi juga lulus di MariaDB 11.8 melalui driver MySQL Laravel, termasuk filter struk lama dan checkout setelah migrasi.
+- `php artisan test` lulus dengan 25 tes dan 238 assertion di SQLite, termasuk pemeriksaan build lama, format invoice, dan checkout setelah migrasi akun lama. Kedua tes migrasi juga lulus di MariaDB 11.8 melalui driver MySQL Laravel.
 - `npm run build` dan `npx tsc --noEmit`: lulus.
 - Browser Chromium pada database contoh terpisah: laporan admin, filter kasir, detail struk, checkout tunai, riwayat setelah refresh, serta layout viewport 390 dan 320 piksel. Fixture browser berada di luar repository.
 - Penguncian transaksi belum diuji dengan dua koneksi MySQL bersamaan; lakukan uji akhir di database uji Laragon sebelum dipakai operasional.

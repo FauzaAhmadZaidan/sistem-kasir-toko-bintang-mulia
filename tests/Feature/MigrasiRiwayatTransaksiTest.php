@@ -14,6 +14,7 @@ class MigrasiRiwayatTransaksiTest extends TestCase
 {
     private const MIGRASI_SKEMA_LAMA = '2026_11_23_000000_complete_legacy_transaction_columns.php';
     private const MIGRASI_STRUK = 'database/migrations/2026_11_23_000001_add_receipt_snapshot_to_transaksi.php';
+    private const MIGRASI_STATUS = 'database/migrations/2026_11_24_000001_add_status_to_legacy_users.php';
 
     private function jalankanMigrasiSebelumRiwayat(): void
     {
@@ -35,6 +36,8 @@ class MigrasiRiwayatTransaksiTest extends TestCase
         Schema::table('detail_transaksi', fn (Blueprint $table) => $table->integer('harga')->nullable());
 
         $user = User::create(['username' => 'kasir_uji', 'password' => 'password', 'role' => 'user']);
+        $user->status = 'tidak aktif';
+        $user->save();
         $this->seed(BarangSeeder::class);
         $transaksi = DB::table('transaksi')->insertGetId([
             'user_id' => $user->id,
@@ -59,10 +62,12 @@ class MigrasiRiwayatTransaksiTest extends TestCase
         $this->assertTrue(Schema::hasIndex('transaksi', ['waktu']));
         $indeksKasir = collect(Schema::getIndexes('transaksi'))->where('columns', ['user_id', 'waktu']);
         $this->assertSame(['riwayat_kasir_lama'], $indeksKasir->pluck('name')->all());
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'status' => 'tidak aktif']);
 
-        $this->artisan('migrate:rollback', ['--path' => [self::MIGRASI_STRUK], '--step' => 1])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--path' => [self::MIGRASI_STRUK, self::MIGRASI_STATUS], '--step' => 2])->assertSuccessful();
         $this->assertDatabaseHas('transaksi', ['id' => $transaksi, 'nama_kasir' => 'Kasir Uji Lama', 'total' => 28000]);
         $this->assertDatabaseHas('detail_transaksi', ['transaksi_id' => $transaksi, 'harga' => 28000]);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'status' => 'tidak aktif']);
         $this->artisan('migrate')->assertSuccessful();
     }
 
@@ -70,7 +75,8 @@ class MigrasiRiwayatTransaksiTest extends TestCase
     {
         $this->jalankanMigrasiSebelumRiwayat();
 
-        // Struktur awal proyek pernah dibuat tanpa waktu dan menyimpan barang langsung di detail.
+        // Struktur awal proyek belum menyimpan status akun dan waktu checkout.
+        Schema::table('users', fn (Blueprint $table) => $table->dropColumn('status'));
         Schema::table('transaksi', function (Blueprint $table) {
             $table->dropColumn('waktu');
             $table->string('nama_kasir')->nullable();
@@ -101,8 +107,14 @@ class MigrasiRiwayatTransaksiTest extends TestCase
             'transaksi_id' => $idLama, 'barang_id' => 1, 'jumlah' => 2, 'total_harga' => 54000,
         ]);
 
+        $checkout = [
+            'kode_checkout' => (string) Str::uuid(), 'bayar' => 50000, 'total' => 28000,
+            'items' => [['id' => 1, 'qty' => 1, 'harga' => 28000]],
+        ];
+        $this->actingAs($kasir)->postJson('/transaksi/store', $checkout)->assertForbidden();
         $this->artisan('migrate')->assertSuccessful();
 
+        $this->assertSame('aktif', $kasir->refresh()->status);
         $this->assertDatabaseHas('transaksi', [
             'id' => $idLama, 'waktu' => '2026-11-23 09:00:00', 'nama_kasir' => 'Kasir Uji Lama',
         ]);
@@ -115,10 +127,8 @@ class MigrasiRiwayatTransaksiTest extends TestCase
             ->assertJsonPath('data.items.0.subtotal', 54000);
         $this->getJson('/transaksi/' . $idTanpaWaktu)->assertOk()->assertJsonPath('data.waktu', null);
 
-        $idBaru = $this->postJson('/transaksi/store', [
-            'kode_checkout' => (string) Str::uuid(), 'bayar' => 50000, 'total' => 28000,
-            'items' => [['id' => 1, 'qty' => 1, 'harga' => 28000]],
-        ])->assertOk()->assertJsonPath('data.items.0.subtotal', 28000)->json('data.id');
+        $idBaru = $this->postJson('/transaksi/store', $checkout)->assertOk()
+            ->assertJsonPath('data.items.0.subtotal', 28000)->json('data.id');
         $this->assertDatabaseHas('detail_transaksi', [
             'transaksi_id' => $idBaru, 'barang_id' => 1, 'sku_id' => 1,
             'jumlah' => 1, 'total_harga' => 28000, 'harga' => 28000,
